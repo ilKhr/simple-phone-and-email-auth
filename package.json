@@ -1,4 +1,25 @@
 {
   "name": "simple-phone-and-email-auth",
-  "packageManager": "yarn@4.4.0"
+  "packageManager": "yarn@4.4.0",
+  "devDependencies": {
+    "@types/bcrypt": "^5",
+    "@types/node": "^22.10.2",
+    "json-schema-to-ts": "^3.1.1",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node ./dist/index.js",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "bcrypt": "^5.1.1",
+    "fastify": "^5.2.0",
+    "pino": "^9.5.0",
+    "redis": "^4.7.0",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^5.1.7"
+  }
 }

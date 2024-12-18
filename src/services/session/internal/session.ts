@@ -1,0 +1,79 @@
+import { Session } from "./entities/session";
+
+const getExpiresAt = () => new Date(new Date().getTime() + 5 * 60000);
+
+export interface SessionSaver {
+  save: (
+    session: Session
+    // TODO: make generic for do it automaticly and replace everythere
+  ) => Promise<Omit<Session, "getId"> & { getId: () => string }>;
+}
+
+export interface SessionRemover {
+  byId: (id: string) => Promise<boolean>;
+}
+
+export interface Logger {
+  error: (msg: string) => void;
+  with: (msg: string) => Logger;
+}
+
+const ErrorMessages = {
+  SessionIdNotProvided: "Session ID not provided",
+  UserIdNotProvided: "User ID not provided",
+  IpAddressNotProvided: "IP address not provided",
+  SessionNotRemoved: "Session could not be removed",
+};
+
+export class SessionService {
+  private op = "session.service";
+
+  constructor(
+    private sessionCreator: SessionSaver,
+    private sessionRemover: SessionRemover,
+    private logger: Logger
+  ) {
+    this.logger = logger.with(`op: ${this.op}`);
+  }
+
+  public async create(userId: string, ipAddress: string): Promise<string> {
+    const op = `.create`;
+    const logger = this.logger.with(`${op}`);
+
+    if (!userId) {
+      logger.error(`err: ${ErrorMessages.UserIdNotProvided}`);
+      throw new Error(ErrorMessages.UserIdNotProvided);
+    }
+
+    if (!ipAddress) {
+      logger.error(`err: ${ErrorMessages.IpAddressNotProvided}`);
+      throw new Error(ErrorMessages.IpAddressNotProvided);
+    }
+
+    const session = await this.sessionCreator.save(
+      /* TODO: replace getExpireAt */
+      new Session({ expiresAt: getExpiresAt(), id: null, ipAddress, userId })
+    );
+
+    return session.getId();
+  }
+
+  public async remove(id: string): Promise<boolean> {
+    const op = `.remove`;
+    const logger = this.logger.with(`${op}`);
+
+    if (!id) {
+      logger.error(`err: ${ErrorMessages.SessionIdNotProvided}`);
+      throw new Error(ErrorMessages.SessionIdNotProvided);
+    }
+
+    const isRemoved = await this.sessionRemover.byId(id);
+
+    if (!isRemoved) {
+      logger.error(`err: ${ErrorMessages.SessionNotRemoved}`);
+      throw new Error(ErrorMessages.SessionNotRemoved);
+    }
+
+    return isRemoved;
+  }
+}
