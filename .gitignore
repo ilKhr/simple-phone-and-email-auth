@@ -13,3 +13,7 @@ dist
 
 #!.yarn/cache
 .pnp.*
+redis
+sqlite3
+path-from-config
+config

@@ -1,5 +1,4 @@
 import bcrypt from "bcrypt";
-
 import pino from "pino";
 import { Server } from "./app/http/server";
 import { EmailPassword } from "./services/sso/internal/signIn/strategies/email/emailPassword";
@@ -7,15 +6,27 @@ import { SsoService } from "./services/sso/internal/sso";
 import { PinoAdapter } from "./adapters/pino";
 import { SqliteUserRepository } from "./storage/sqlite3/user";
 import { SQLiteConnection } from "./storage/sqlite3/database";
-import { PasswordService } from "./services/email/password/password";
+import { PasswordService } from "./services/password/password";
 import { RedisConnection } from "./storage/redis/database";
 import { SessionService } from "./services/session/internal/session";
 import { RedisSessionRepository } from "./storage/redis/session";
 import { EmailPasswordSignUpStrategies } from "./services/sso/internal/signUp/strategies/email/emailPassword";
-import { RedisOtpRepository } from "./storage/redis/otp";
+import { EmailService } from "./services/email/email";
+
+import * as configs from "./config/";
+import { Nodemailer } from "./services/email/integrations/nodemailer";
+import { otpGenerator, randomStringGenerator } from "./utils/gererators";
+import { MessageProvider } from "./services/messageProvider/messageProvider";
+import { LocalMessageProvideStrategies } from "./services/messageProvider/strategies/local";
+import { HttpRouter } from "./app/http/routes/router";
+import { SqliteOtpRepository } from "./storage/sqlite3/otp";
+
+console.log("KEK");
 
 (async () => {
-  const server = new Server();
+  const mode = "local";
+
+  const config = configs[mode];
 
   // TODO: setup logger for different MODE
   const logger = new PinoAdapter(
@@ -30,24 +41,34 @@ import { RedisOtpRepository } from "./storage/redis/otp";
   // TODO: add config
   const connectionSqlite = await SQLiteConnection.getInstance(
     // TODO: add path from config
-    "path-from-config"
+    config.config.services.sso.database.sqlite.url
   );
   const dbSqlite = await connectionSqlite.getDb();
 
   const connectionRedis = await RedisConnection.getInstance(
     // TODO: add path from config
-    "path-from-config",
+    config.config.services.session.database.redis.url,
     logger
   );
 
   const dbRedis = connectionRedis.getClient();
 
+  const userRepository = new SqliteUserRepository(dbSqlite, logger);
+  const sessionRepository = new RedisSessionRepository(
+    dbRedis,
+    { generateId: randomStringGenerator },
+    logger
+  );
+
+  const otpRepository = new SqliteOtpRepository(dbSqlite, logger);
+
+  const localMessageStrategy = new LocalMessageProvideStrategies();
+  const messageProvider = new MessageProvider(localMessageStrategy);
+
   const passwordService = PasswordService.getInstance(bcrypt);
 
-  const userRepository = new SqliteUserRepository(dbSqlite, logger);
-  const sessionRepository = new RedisSessionRepository(dbRedis, logger);
-
-  const otpRepository = new RedisOtpRepository(logger);
+  const emailSender = new Nodemailer(config.config.services.email);
+  const emailSendService = new EmailService(emailSender, logger);
 
   const sessionService = new SessionService(
     sessionRepository,
@@ -57,10 +78,9 @@ import { RedisOtpRepository } from "./storage/redis/otp";
     logger
   );
 
-  // TODO: fill service
   const ssoService = new SsoService(
     {
-      EmailPassword: new EmailPassword(
+      EmailPasswordStategy: new EmailPassword(
         userRepository,
         passwordService,
         sessionService,
@@ -68,28 +88,38 @@ import { RedisOtpRepository } from "./storage/redis/otp";
       ),
     },
     {
-      signUpEmailPassword: new EmailPasswordSignUpStrategies(
+      EmailPasswordSignUpStrategy: new EmailPasswordSignUpStrategies(
         otpRepository,
         logger,
         userRepository,
+        emailSendService,
         {
-          send: () => "",
+          generate: otpGenerator,
         },
-        () => "",
-        () => "",
+        {
+          messageText: messageProvider.getMessage("verify", "email"),
+        },
         {
           byId: otpRepository.deleteById,
         },
         otpRepository,
-        {
-          hash: () => "",
-        },
+        passwordService,
         userRepository,
         sessionService
       ),
     },
     logger
   );
+
+  const router = HttpRouter(ssoService);
+
+  const server = new Server(config.config.services.sso.http);
+
+  Object.entries(router).forEach(([ednpoint, methods]) => {
+    Object.entries(methods).forEach(([m, sh]) => {
+      server.route(m, sh.schema, ednpoint, sh.handler);
+    });
+  });
 
   server.run(3000, (err, port) => {
     if (err) {

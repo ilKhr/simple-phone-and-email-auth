@@ -1,68 +1,50 @@
 const logSeparator = ";";
 
-interface Reciver {
-  verified: (email: string) => Promise<boolean>;
-}
-
-interface Strategies {
-  fromUs: (email: string) => Promise<boolean>;
-  toUs: (email: string, code: string) => Promise<boolean>;
-}
-
 interface Logger {
+  info: (msg: string) => void;
   error: (msg: string) => void;
   with: (msg: string) => Logger;
 }
 
+export type Message = {
+  from: string;
+  to: string;
+  subject: string;
+  text: string;
+  html: string;
+};
+
+export interface EmailSender {
+  send: (message: Message) => Promise<boolean>;
+}
+
 const ErrorMessages = {
-  FromUsWasFail: "From us was fail",
-  EmailWasNotVerify: "Email was not verify",
+  EmailWasNotSended: "Email was not sended",
 };
 
 export class EmailService {
-  private reciver: Reciver;
-  private strategies: Strategies;
-  private logger: Logger;
-
   private op = "email.emailService";
 
-  constructor(r: Reciver, s: Strategies, l: Logger) {
-    this.reciver = r;
-    this.strategies = s;
-    this.logger = l.with(`op: ${this.op}`);
+  constructor(private emailSender: EmailSender, private logger: Logger) {
+    this.logger = logger.with(`op: ${this.op}`);
   }
 
-  public fromUs = async (email: string): Promise<boolean> => {
-    const op = `.fromUs${logSeparator}`;
+  public async send(message: Message): Promise<boolean> {
+    const op = `.send${logSeparator}`;
     const logger = this.logger.with(`${op}`);
 
-    const isComplete = await this.strategies.fromUs(email);
+    logger.info(`mess: ${message}`);
+
+    const isComplete = await this.emailSender.send(message);
 
     if (!isComplete) {
-      const msg = `err: ${ErrorMessages.FromUsWasFail}`;
+      const msg = `err: ${ErrorMessages.EmailWasNotSended}`;
 
       logger.error(msg);
 
-      throw new Error(ErrorMessages.FromUsWasFail);
+      throw new Error(ErrorMessages.EmailWasNotSended);
     }
 
     return true;
-  };
-
-  public toUs = async (e: string, c: string): Promise<boolean> => {
-    const op = `.toUs${logSeparator}`;
-    const logger = this.logger.with(`${op}`);
-
-    const isVerified = await this.strategies.toUs(e, c);
-
-    if (!isVerified) {
-      logger.error(`err: ${ErrorMessages.EmailWasNotVerify}`);
-
-      return false;
-    }
-
-    await this.reciver.verified(e);
-
-    return true;
-  };
+  }
 }

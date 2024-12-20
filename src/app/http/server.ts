@@ -1,43 +1,55 @@
 import Fastify, {
   FastifyInstance,
-  FastifyReply,
-  FastifyRequest,
   FastifySchema,
   HTTPMethods,
-  RouteGenericInterface,
-  RouteHandler,
+  RawReplyDefaultExpression,
+  RawRequestDefaultExpression,
+  RawServerBase,
+  RawServerDefault,
+  RouteHandlerMethod,
 } from "fastify";
 
-export type Handler<
-  Schema extends {
-    request: FastifySchema;
-    reply: RouteGenericInterface["Reply"];
+import fastifyCookie from "@fastify/cookie";
+import fastifySwagger from "@fastify/swagger";
+
+export type Handler<S extends FastifySchema> = RouteHandlerMethod<
+  RawServerBase,
+  RawRequestDefaultExpression<RawServerDefault>,
+  RawReplyDefaultExpression<RawServerDefault>,
+  {
+    Body: S["body"];
+    Headers: S["headers"];
+    Params: S["params"];
+    Querystring: S["querystring"];
+    Reply: S["response"];
   }
-> = RouteHandler<{
-  Body: Schema["request"]["body"];
-  Headers: Schema["request"]["headers"];
-  Params: Schema["request"]["params"];
-  Querystring: Schema["request"]["querystring"];
-  Reply: Schema["reply"];
-}>;
+>;
+
+type Config = {
+  cookieSecret: string;
+};
 
 export class Server {
   private server: FastifyInstance;
 
-  constructor() {
+  constructor(private config: Config) {
+    console.log("HERE");
     this.server = Fastify({
       logger: true,
     });
+
+    this.server.register(fastifyCookie, {
+      secret: this.config.cookieSecret,
+    });
+
+    this.server.register(fastifySwagger);
   }
 
-  public register = (
+  public route = <S extends FastifySchema>(
     method: HTTPMethods,
-    schema: FastifySchema,
+    schema: S,
     url: string,
-    handler: (
-      req: FastifyRequest,
-      res: FastifyReply
-    ) => Promise<unknown> | unknown
+    handler: Handler<S>
   ) => {
     this.server.route({ method, url, schema, handler });
   };

@@ -1,4 +1,4 @@
 export const ENDPOINTS = {
   root: "/",
-  userSignUpEmail: "/user/signUp/email",
-};
+  userSignUpEmailPassword: "/sso/user/signUp/email-password",
+} as const;

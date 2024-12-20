@@ -1,9 +1,13 @@
+import { IdRequired } from "../../../../utils/types";
+
 const logSeparator = ";";
 
 const ErrorMessages = {
   DestinationAvalibleOnlyForUnregister:
     "Destination can use only unregister otp users",
 };
+
+export type OtpWithId = IdRequired<Otp>;
 
 interface Logger {
   error: (msg: string) => void;
@@ -37,12 +41,24 @@ export class Otp {
     this.logger = params.l.with(`op: ${this.op}`);
   }
 
+  setId = (id: string) => {
+    this.id = id;
+  };
+
   getId = () => {
     return this.id;
   };
 
+  getOtp = () => {
+    return this.otp;
+  };
+
   getUserId = () => {
     return this.userId;
+  };
+
+  getExpiresAt = () => {
+    return this.expiresAt;
   };
 
   checkIsExpires = () => {

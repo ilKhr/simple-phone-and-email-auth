@@ -1,4 +1,4 @@
-import { User } from "../../../entities/user";
+import { UserWithId } from "../../../entities/user";
 
 const logSeparator = ";";
 
@@ -7,7 +7,7 @@ interface PasswordComparer {
 }
 
 interface UserProvider {
-  byEmail: (e: string) => Promise<User | null>;
+  byEmail: (user: string) => Promise<UserWithId | null>;
 }
 
 export interface Logger {

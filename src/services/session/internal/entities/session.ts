@@ -1,3 +1,7 @@
+import { IdRequired } from "../../../../utils/types";
+
+export type SessionWithId = IdRequired<Session>;
+
 export class Session {
   private id: string | null;
   private userId: string;

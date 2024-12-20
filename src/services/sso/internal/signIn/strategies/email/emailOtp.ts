@@ -1,5 +1,5 @@
-import { Otp } from "../../../entities/otp";
-import { User } from "../../../entities/user";
+import { Otp, OtpWithId } from "../../../entities/otp";
+import { UserWithId } from "../../../entities/user";
 
 // TODO: add normal time functions
 const getExpiresAt = () => new Date(new Date().getTime() + 5 * 60000);
@@ -7,7 +7,7 @@ const getExpiresAt = () => new Date(new Date().getTime() + 5 * 60000);
 const logSeparator = ";";
 
 interface otpProvider {
-  byOtp: (e: string) => Promise<Otp | null>;
+  byOtp: (e: string) => Promise<OtpWithId | null>;
 }
 
 interface Logger {
@@ -16,8 +16,8 @@ interface Logger {
 }
 
 interface UserProvider {
-  byId: (id: string) => Promise<User | null>;
-  byEmail: (email: string) => Promise<User | null>;
+  byId: (id: string) => Promise<UserWithId | null>;
+  byEmail: (email: string) => Promise<UserWithId | null>;
 }
 
 interface Sender {
@@ -37,7 +37,7 @@ interface OtpRemover {
 }
 
 interface OtpSaver {
-  save: (otp: Otp) => Promise<Otp>;
+  save: (otp: Otp) => Promise<OtpWithId>;
 }
 
 interface SessionCreator {
@@ -117,15 +117,7 @@ export class EmailOtp {
       throw new Error(ErrorMessages.IncorrectLoginOrOtp);
     }
 
-    const otpId = otp.getId();
-
-    if (!otpId) {
-      logger.error(`err: ${ErrorMessages.IdNotExists}`);
-
-      throw new Error(ErrorMessages.IdNotExists);
-    }
-
-    await this.otpRemover.byId(otpId);
+    await this.otpRemover.byId(otp.getId());
 
     return this.sessionCreator.create(uId, " " /* TODO: add IP address */);
   }
@@ -165,20 +157,13 @@ export class EmailOtp {
       throw new Error(ErrorMessages.MessageWasNotSend);
     }
 
-    const uId = user.getId();
-
-    if (!uId) {
-      logger.error(`err: ${ErrorMessages.UserIdNotExists}`);
-
-      throw new Error(ErrorMessages.UserIdNotExists);
-    }
-
     const otp = new Otp({
       destination: credentials.email,
       expiresAt: getExpiresAt(),
-      l: this.logger,
+      l: this.logger, // TODO: add normal pass logger
       otp: code,
-      userId: uId,
+      userId: user.getId(),
+      id: null,
     });
 
     await this.otpSaver.save(otp);

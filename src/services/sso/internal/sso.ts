@@ -2,53 +2,61 @@ const logSeparator = ";";
 
 type Token = string;
 
-interface EmailOtpStategy {
+export type EmailMessage = {
+  from: string;
+  to: string;
+  subject: string;
+  text: string;
+  html: string;
+};
+
+// interface EmailOtpStrategy {
+//   authenticate: (credentials: {
+//     email: string;
+//     code: string;
+//   }) => Promise<Token>;
+
+//   verify: (credentials: { email: string }) => Promise<boolean>;
+// }
+
+interface EmailPasswordStrategy {
   authenticate: (credentials: {
     email: string;
-    code: string;
+    password: string;
   }) => Promise<Token>;
 
   verify: (credentials: { email: string }) => Promise<boolean>;
 }
 
-interface EmailPasswordStategy {
-  authenticate: (credentials: {
-    email: string;
-    password: string;
-  }) => Promise<Token>;
+// interface PhoneOtpStrategy {
+//   authenticate: (credentials: {
+//     phone: string;
+//     code: string;
+//   }) => Promise<Token>;
 
-  verify: (credentials: { email: string }) => Promise<boolean>;
-}
+//   verify: (credentials: { phone: string }) => Promise<boolean>;
+// }
 
-interface PhoneOtpStategy {
-  authenticate: (credentials: {
-    phone: string;
-    code: string;
-  }) => Promise<Token>;
+// interface PhonePasswordStrategy {
+//   authenticate: (credentials: {
+//     phone: string;
+//     password: string;
+//   }) => Promise<Token>;
 
-  verify: (credentials: { phone: string }) => Promise<boolean>;
-}
+//   verify: (credentials: { phone: string }) => Promise<boolean>;
+// }
 
-interface PhonePasswordStategy {
-  authenticate: (credentials: {
-    phone: string;
-    password: string;
-  }) => Promise<Token>;
+// interface PhonePasswordSignUpStrategy {
+//   register: (credentials: {
+//     phone: string;
+//     password: string;
+//     code: string;
+//   }) => Promise<Token>;
 
-  verify: (credentials: { phone: string }) => Promise<boolean>;
-}
+//   verify: (credentials: { phone: string }) => Promise<boolean>;
+// }
 
-interface PhonePasswordSignUpStategy {
-  register: (credentials: {
-    phone: string;
-    password: string;
-    code: string;
-  }) => Promise<Token>;
-
-  verify: (credentials: { phone: string }) => Promise<boolean>;
-}
-
-interface EmailPasswordSignUpStategy {
+interface EmailPasswordSignUpStrategy {
   register: (credentials: {
     email: string;
     password: string;
@@ -63,38 +71,39 @@ export interface Logger {
   with: (msg: string) => Logger;
 }
 
-type EnableSignInStrategies =
-  | EmailOtpStategy
-  | PhoneOtpStategy
-  | EmailPasswordStategy
-  | PhonePasswordStategy;
-
-type EnableSignUpStrategies =
-  | PhonePasswordSignUpStategy
-  | EmailPasswordSignUpStategy;
-
 export const ErrorMessages = {
   UnsuporterAuthMethod: "Unsuported auth method",
 };
 
-export class SsoService {
-  private signInStrategies: Record<string, EnableSignInStrategies> = {};
-  private signUpStrategies: Record<string, EnableSignUpStrategies> = {};
+type ActionToStrategies = {
+  signUp: {
+    EmailPasswordSignUpStrategy: EmailPasswordSignUpStrategy;
+    // PhonePasswordSignUpStrategy: PhonePasswordSignUpStrategy;
+  };
 
-  private logger: Logger;
+  signIn: {
+    // EmailOtpStategy: EmailOtpStrategy;
+    // PhoneOtpStategy: PhoneOtpStrategy;
+    EmailPasswordStategy: EmailPasswordStrategy;
+    // PhonePasswordStategy: PhonePasswordStrategy;
+  };
+};
+export class SsoService {
   private op = "sso.ssoService";
 
   constructor(
-    sis: Record<string, EnableSignInStrategies>,
-    sus: Record<string, EnableSignUpStrategies>,
-    l: Logger
+    private signInStrategies: ActionToStrategies["signIn"],
+    private signUpStrategies: ActionToStrategies["signUp"],
+    private logger: Logger
   ) {
-    this.signInStrategies = sis;
-    this.signUpStrategies = sus;
-    this.logger = l.with(`op: ${this.op}`);
+    this.logger = logger.with(`op: ${this.op}`);
   }
 
-  public authenticate = (method: string, credentials: any): Promise<Token> => {
+  // TODO: replace any to normal types
+  public authenticate = <M extends keyof ActionToStrategies["signIn"]>(
+    method: M,
+    credentials: Parameters<ActionToStrategies["signIn"][M]["authenticate"]>[0]
+  ): Promise<Token> => {
     const op = `.authenticate${logSeparator}`;
     const logger = this.logger.with(`${op}`);
 
@@ -108,10 +117,14 @@ export class SsoService {
       throw new Error(ErrorMessages.UnsuporterAuthMethod);
     }
 
+    //@ts-ignore
     return strategy.authenticate(credentials);
   };
 
-  public verify = (method: string, credentials: any): Promise<boolean> => {
+  public verify = <M extends keyof ActionToStrategies["signIn"]>(
+    method: M,
+    credentials: Parameters<ActionToStrategies["signIn"][M]["verify"]>[0]
+  ): Promise<boolean> => {
     const op = `.verify${logSeparator}`;
     const logger = this.logger.with(`${op}`);
 
@@ -125,10 +138,14 @@ export class SsoService {
       throw new Error(ErrorMessages.UnsuporterAuthMethod);
     }
 
+    //@ts-ignore
     return strategy.verify(credentials);
   };
 
-  public preRegister = (method: string, credentials: any): Promise<boolean> => {
+  public preRegister = <M extends keyof ActionToStrategies["signUp"]>(
+    method: M,
+    credentials: Parameters<ActionToStrategies["signUp"][M]["verify"]>[0]
+  ): Promise<boolean> => {
     const op = `.preRegister${logSeparator}`;
     const logger = this.logger.with(`${op}`);
 
@@ -142,10 +159,14 @@ export class SsoService {
       throw new Error(ErrorMessages.UnsuporterAuthMethod);
     }
 
+    //@ts-ignore
     return strategy.verify(credentials);
   };
 
-  public register = (method: string, credentials: any): Promise<Token> => {
+  public register = <M extends keyof ActionToStrategies["signUp"]>(
+    method: M,
+    credentials: Parameters<ActionToStrategies["signUp"][M]["register"]>[0]
+  ): Promise<Token> => {
     const op = `.preRegister${logSeparator}`;
     const logger = this.logger.with(`${op}`);
 
@@ -159,6 +180,7 @@ export class SsoService {
       throw new Error(ErrorMessages.UnsuporterAuthMethod);
     }
 
+    //@ts-ignore
     return strategy.register(credentials);
   };
 }

@@ -1,14 +1,15 @@
-import { Otp } from "../../../entities/otp";
-import { User } from "../../../entities/user";
+import { Otp, OtpWithId } from "../../../entities/otp";
+import { User, UserWithId } from "../../../entities/user";
+import { EmailMessage } from "../../../sso";
 
 // TODO: add normal time functions
 const getExpiresAt = () => new Date(new Date().getTime() + 5 * 60000);
 
 const logSeparator = ";";
 
-export interface otpProvider {
-  byOtp: (e: string) => Promise<Otp | null>;
-  byDestination: (e: string) => Promise<Otp | null>;
+export interface OtpProvider {
+  byOtp: (e: string) => Promise<OtpWithId | null>;
+  byDestination: (e: string) => Promise<OtpWithId | null>;
 }
 
 export interface Logger {
@@ -17,20 +18,20 @@ export interface Logger {
 }
 
 export interface UserProvider {
-  byId: (id: string) => Promise<User | null>;
-  byEmail: (email: string) => Promise<User | null>;
+  byId: (id: string) => Promise<UserWithId | null>;
+  byEmail: (email: string) => Promise<UserWithId | null>;
 }
 
 export interface Sender {
-  send: (email: string, message: string) => Promise<boolean>;
+  send: (message: EmailMessage) => Promise<boolean>;
 }
 
-export interface CodeGenerator {
+export interface OtpGenerator {
   generate: () => Promise<string>;
 }
 
 export interface ProviderMessageText {
-  messageText: (code: string) => string;
+  messageText: (params: { to: string; code: string }) => EmailMessage;
 }
 
 export interface OtpRemover {
@@ -38,7 +39,7 @@ export interface OtpRemover {
 }
 
 export interface OtpSaver {
-  save: (otp: Otp) => Promise<Otp>;
+  save: (otp: Otp) => Promise<OtpWithId>;
 }
 
 export interface Hasher {
@@ -46,7 +47,7 @@ export interface Hasher {
 }
 
 export interface UserSaver {
-  save: (e: User) => Promise<User>;
+  save: (e: User) => Promise<UserWithId>;
 }
 
 export interface SessionCreator {
@@ -69,11 +70,11 @@ export class EmailPasswordSignUpStrategies {
   private op = "email.signUp.stategies.emailOtp";
 
   constructor(
-    private otpProvider: otpProvider,
+    private otpProvider: OtpProvider,
     private logger: Logger,
     private userProvider: UserProvider,
     private sender: Sender,
-    private codeGenerator: CodeGenerator,
+    private otpGenerator: OtpGenerator,
     private providerMessageTexter: ProviderMessageText,
     private otpRemover: OtpRemover,
     private otpSaver: OtpSaver,
@@ -113,12 +114,6 @@ export class EmailPasswordSignUpStrategies {
 
     const otpId = otp.getId();
 
-    if (!otpId) {
-      logger.error(`err: ${ErrorMessages.IdNotExists}`);
-
-      throw new Error(ErrorMessages.IdNotExists);
-    }
-
     if (isExpiresResult) {
       await this.otpRemover.byId(otpId);
 
@@ -153,19 +148,11 @@ export class EmailPasswordSignUpStrategies {
 
     const uId = user.getId();
 
-    if (!uId) {
-      logger.error(`err: ${ErrorMessages.UserIdNotExists}`);
-
-      throw new Error(ErrorMessages.UserIdNotExists);
-    }
-
     return this.sessionCreator.create(uId, " " /* TODO: add IP address */);
   }
 
   // send otp to email
   async verify(credentials: { email: string }): Promise<boolean> {
-    // проверить, есть ли этот телефон в OTP
-    // отправить сообщение
     const op = `.verify${logSeparator}`;
     const logger = this.logger.with(`${op}`);
 
@@ -185,11 +172,14 @@ export class EmailPasswordSignUpStrategies {
       throw new Error(ErrorMessages.OtpAlreadyUsedTryLater);
     }
 
-    const code = await this.codeGenerator.generate();
+    const code = await this.otpGenerator.generate();
 
-    const message = this.providerMessageTexter.messageText(code);
+    const message = this.providerMessageTexter.messageText({
+      to: credentials.email,
+      code,
+    });
 
-    const isSent = await this.sender.send(credentials.email, message);
+    const isSent = await this.sender.send(message);
 
     if (!isSent) {
       logger.error(`err: ${ErrorMessages.MessageWasNotSend}`);
@@ -206,12 +196,8 @@ export class EmailPasswordSignUpStrategies {
       l: this.logger,
     });
 
-    if (existedOtp && existedOtp.getId()) {
-      const eotpId = existedOtp.getId();
-
-      if (eotpId) {
-        await this.otpRemover.byId(eotpId);
-      }
+    if (existedOtp) {
+      await this.otpRemover.byId(existedOtp.getId());
     }
 
     await this.otpSaver.save(otp);

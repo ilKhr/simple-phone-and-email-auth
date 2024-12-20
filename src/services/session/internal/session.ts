@@ -1,3 +1,4 @@
+import { IdRequired } from "../../../utils/types";
 import { Session } from "./entities/session";
 
 const getExpiresAt = () => new Date(new Date().getTime() + 5 * 60000);
@@ -6,7 +7,7 @@ export interface SessionSaver {
   save: (
     session: Session
     // TODO: make generic for do it automaticly and replace everythere
-  ) => Promise<Omit<Session, "getId"> & { getId: () => string }>;
+  ) => Promise<IdRequired<Session>>;
 }
 
 export interface SessionRemover {

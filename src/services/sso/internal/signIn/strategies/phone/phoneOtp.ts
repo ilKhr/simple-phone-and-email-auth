@@ -1,5 +1,5 @@
-import { Otp } from "../../../entities/otp";
-import { User } from "../../../entities/user";
+import { Otp, OtpWithId } from "../../../entities/otp";
+import { UserWithId } from "../../../entities/user";
 
 // TODO: add normal time functions
 const getExpiresAt = () => new Date(new Date().getTime() + 5 * 60000);
@@ -7,7 +7,7 @@ const getExpiresAt = () => new Date(new Date().getTime() + 5 * 60000);
 const logSeparator = ";";
 
 interface otpProvider {
-  byOtp: (e: string) => Promise<Otp | null>;
+  byOtp: (e: string) => Promise<OtpWithId | null>;
 }
 
 interface Logger {
@@ -16,8 +16,8 @@ interface Logger {
 }
 
 interface UserProvider {
-  byId: (id: string) => Promise<User | null>;
-  byPhone: (phone: string) => Promise<User | null>;
+  byId: (id: string) => Promise<UserWithId | null>;
+  byPhone: (phone: string) => Promise<UserWithId | null>;
 }
 
 interface Sender {
@@ -37,7 +37,7 @@ interface OtpRemover {
 }
 
 interface OtpSaver {
-  save: (otp: Otp) => Promise<Otp>;
+  save: (otp: Otp) => Promise<OtpWithId>;
 }
 
 export interface SessionCreator {

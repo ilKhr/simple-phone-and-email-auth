@@ -1,3 +1,5 @@
+import { IdRequired } from "../../../../utils/types";
+
 type Contact = {
   isVerified: boolean;
   value: string | null;
@@ -7,6 +9,8 @@ type Contacts = {
   email: Contact;
   phone: Contact;
 };
+
+export type UserWithId = IdRequired<User>;
 
 export class User {
   private id: string | null;

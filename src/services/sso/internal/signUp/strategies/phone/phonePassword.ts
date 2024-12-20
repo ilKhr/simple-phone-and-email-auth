@@ -1,5 +1,5 @@
-import { Otp } from "../../../entities/otp";
-import { User } from "../../../entities/user";
+import { Otp, OtpWithId } from "../../../entities/otp";
+import { User, UserWithId } from "../../../entities/user";
 
 // TODO: add normal time functions
 const getExpiresAt = () => new Date(new Date().getTime() + 5 * 60000);
@@ -7,7 +7,7 @@ const getExpiresAt = () => new Date(new Date().getTime() + 5 * 60000);
 const logSeparator = ";";
 
 export interface otpProvider {
-  byOtp: (e: string) => Promise<Otp | null>;
+  byOtp: (e: string) => Promise<OtpWithId | null>;
   byDestination: (e: string) => Promise<Otp | null>;
 }
 
@@ -17,8 +17,8 @@ export interface Logger {
 }
 
 export interface UserProvider {
-  byId: (id: string) => Promise<User | null>;
-  byPhone: (phone: string) => Promise<User | null>;
+  byId: (id: string) => Promise<UserWithId | null>;
+  byPhone: (phone: string) => Promise<UserWithId | null>;
 }
 
 export interface Sender {
@@ -38,7 +38,7 @@ export interface OtpRemover {
 }
 
 export interface OtpSaver {
-  save: (otp: Otp) => Promise<Otp>;
+  save: (otp: Otp) => Promise<OtpWithId>;
 }
 
 export interface Hasher {
@@ -46,7 +46,7 @@ export interface Hasher {
 }
 
 export interface UserSaver {
-  save: (e: User) => Promise<User>;
+  save: (user: User) => Promise<UserWithId>;
 }
 
 export interface SessionCreator {
@@ -145,26 +145,24 @@ export class PhonePasswordSignUpStrategies {
       throw new Error(ErrorMessages.ThisPhoneAlreadyUsed);
     }
 
-    const user = new User({
+    const localUser = new User({
       email: null,
       id: null,
       passwordHash: await this.hasher.hash(credentials.password),
       phone: credentials.phone,
     });
 
-    user.setIsVerifiedPhone();
+    localUser.setIsVerifiedPhone();
 
-    await Promise.all([this.userSaver.save(user), this.otpRemover.byId(otpId)]);
+    const [user] = await Promise.all([
+      this.userSaver.save(localUser),
+      this.otpRemover.byId(otpId),
+    ]);
 
-    const uId = user.getId();
-
-    if (!uId) {
-      logger.error(`err: ${ErrorMessages.UserIdNotExists}`);
-
-      throw new Error(ErrorMessages.UserIdNotExists);
-    }
-
-    return this.sessionCreator.create(uId, " " /* TODO: add IP address */);
+    return this.sessionCreator.create(
+      user.getId(),
+      " " /* TODO: add IP address */
+    );
   }
 
   // send otp to phone

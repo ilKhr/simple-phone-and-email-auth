@@ -1,6 +1,7 @@
 import sqlite3 from "sqlite3";
 import { Database } from "sqlite";
-import { User } from "../../services/sso/internal/entities/user";
+import { User, UserWithId } from "../../services/sso/internal/entities/user";
+import { checkHasId } from "../utils/checkHasId";
 
 const logSeparator = ";";
 
@@ -12,9 +13,9 @@ interface Logger {
 const ErrorMessages = {
   LastIdNotExists: "Last id not exists",
   ChangesNotExists: "ChangesNotExists",
+  EntityIdNotExists: "Entity id not exists",
 };
 
-// Типизация строки из базы данных
 interface UserRow {
   id: string | null;
   password_hash: string;
@@ -35,7 +36,7 @@ export class SqliteUserRepository {
     this.logger = l.with(`op: ${this.op}`);
   }
 
-  async save(user: User): Promise<User> {
+  async save(user: User): Promise<UserWithId> {
     const op = `.save${logSeparator}`;
     const logger = this.logger.with(`${op}`);
 
@@ -66,10 +67,11 @@ export class SqliteUserRepository {
 
       user.setId(result.lastID.toString());
     }
-    return user;
+
+    return user as UserWithId;
   }
 
-  async byId(id: string): Promise<User | null> {
+  async byId(id: string): Promise<UserWithId | null> {
     const row = await this.db.get<UserRow>(
       `SELECT * FROM users WHERE id = ?`,
       id
@@ -77,7 +79,7 @@ export class SqliteUserRepository {
     return row ? this.mapToUser(row) : null;
   }
 
-  async byEmail(email: string): Promise<User | null> {
+  async byEmail(email: string): Promise<UserWithId | null> {
     const row = await this.db.get<UserRow>(
       `SELECT * FROM users WHERE email_value = ?`,
       email
@@ -85,7 +87,7 @@ export class SqliteUserRepository {
     return row ? this.mapToUser(row) : null;
   }
 
-  async byPhone(phone: string): Promise<User | null> {
+  async byPhone(phone: string): Promise<UserWithId | null> {
     const row = await this.db.get<UserRow>(
       `SELECT * FROM users WHERE phone_value = ?`,
       phone
@@ -108,13 +110,18 @@ export class SqliteUserRepository {
   }
 
   // Convert db row to User object
-  private mapToUser(row: UserRow): User {
+  private mapToUser(row: UserRow): UserWithId {
     const user = new User({
       email: row.email_value,
       id: row.id,
       passwordHash: row.password_hash,
       phone: row.phone_value,
     });
+
+    if (!checkHasId(user)) {
+      throw new Error(ErrorMessages.EntityIdNotExists);
+    }
+
     return user;
   }
 }

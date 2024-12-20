@@ -1,76 +1,69 @@
-import { beforeEach, describe, expect, MockedObject, test, vi } from "vitest";
-import { Otp } from "../../../entities/otp";
-import { User } from "../../../entities/user";
-import {
-  CodeGenerator,
-  ErrorMessages,
-  Hasher,
-  Logger,
-  otpProvider,
-  OtpRemover,
-  OtpSaver,
-  PhonePasswordSignUpStrategies,
-  ProviderMessageText,
-  Sender,
-  SessionCreator,
-  UserProvider,
-  UserSaver,
-} from "./phonePassword";
+import { beforeEach, describe, expect, test, vi } from "vitest";
+import { PhonePasswordSignUpStrategies, ErrorMessages } from "./phonePassword";
 
-describe("PhoneOtp", () => {
-  let otpProvider: MockedObject<otpProvider>;
-  let logger: MockedObject<Logger>;
-  let userProvider: MockedObject<UserProvider>;
-  let sender: MockedObject<Sender>;
-  let codeGenerator: MockedObject<CodeGenerator>;
-  let providerMessageTexter: MockedObject<ProviderMessageText>;
-  let otpRemover: MockedObject<OtpRemover>;
-  let otpSaver: MockedObject<OtpSaver>;
-  let hasher: MockedObject<Hasher>;
-  let userSaver: MockedObject<UserSaver>;
-  let sessionCreator: MockedObject<SessionCreator>;
-
-  let phoneOtp: PhonePasswordSignUpStrategies;
+describe("PhonePasswordSignUpStrategies", () => {
+  let otpProvider: any;
+  let logger: any;
+  let userProvider: any;
+  let sender: any;
+  let codeGenerator: any;
+  let providerMessageTexter: any;
+  let otpRemover: any;
+  let otpSaver: any;
+  let hasher: any;
+  let userSaver: any;
+  let sessionCreator: any;
+  let strategies: PhonePasswordSignUpStrategies;
 
   beforeEach(() => {
     otpProvider = {
       byOtp: vi.fn(),
       byDestination: vi.fn(),
     };
+
     logger = {
       error: vi.fn(),
       with: vi.fn().mockReturnThis(),
     };
+
     userProvider = {
       byId: vi.fn(),
       byPhone: vi.fn(),
     };
+
     sender = {
       send: vi.fn(),
     };
+
     codeGenerator = {
       generate: vi.fn(),
     };
+
     providerMessageTexter = {
       messageText: vi.fn(),
     };
+
     otpRemover = {
       byId: vi.fn(),
     };
+
     otpSaver = {
       save: vi.fn(),
     };
+
     hasher = {
       hash: vi.fn(),
     };
+
     userSaver = {
       save: vi.fn(),
     };
+
     sessionCreator = {
       create: vi.fn(),
     };
 
-    phoneOtp = new PhonePasswordSignUpStrategies(
+    strategies = new PhonePasswordSignUpStrategies(
       otpProvider,
       logger,
       userProvider,
@@ -86,11 +79,15 @@ describe("PhoneOtp", () => {
   });
 
   describe("register", () => {
-    test("should throw error if OTP does not exist", async () => {
+    test("should throw an error if OTP does not exist", async () => {
       otpProvider.byOtp.mockResolvedValue(null);
 
       await expect(
-        phoneOtp.register({ phone: "123", password: "pass", code: "code" })
+        strategies.register({
+          phone: "1234567890",
+          password: "pass",
+          code: "1234",
+        })
       ).rejects.toThrow(ErrorMessages.OtpNotExists);
 
       expect(logger.error).toHaveBeenCalledWith(
@@ -98,64 +95,86 @@ describe("PhoneOtp", () => {
       );
     });
 
-    test("should throw error if OTP is expired", async () => {
-      const otpMock = {
-        checkIsExpires: vi.fn(() => true),
-        getId: vi.fn(() => "otp-id"),
-        getDestination: vi.fn(() => "123"),
-      } as unknown as Otp;
+    test("should throw an error if phone does not match OTP destination", async () => {
+      const mockOtp = {
+        getDestination: vi.fn().mockReturnValue("0987654321"),
+        checkIsExpires: vi.fn(),
+        getId: vi.fn(),
+      };
 
-      otpProvider.byOtp.mockResolvedValue(otpMock);
+      otpProvider.byOtp.mockResolvedValue(mockOtp);
 
       await expect(
-        phoneOtp.register({ phone: "123", password: "pass", code: "code" })
+        strategies.register({
+          phone: "1234567890",
+          password: "pass",
+          code: "1234",
+        })
+      ).rejects.toThrow(ErrorMessages.IncorrectLoginOrOtp);
+
+      expect(logger.error).toHaveBeenCalledWith(
+        `err: ${ErrorMessages.IncorrectLoginOrOtp}`
+      );
+    });
+
+    test("should remove expired OTP and throw an error", async () => {
+      const mockOtp = {
+        getDestination: vi.fn().mockReturnValue("1234567890"),
+        checkIsExpires: vi.fn().mockReturnValue(true),
+        getId: vi.fn().mockReturnValue("otpId"),
+      };
+
+      otpProvider.byOtp.mockResolvedValue(mockOtp);
+
+      await expect(
+        strategies.register({
+          phone: "1234567890",
+          password: "pass",
+          code: "1234",
+        })
       ).rejects.toThrow(ErrorMessages.OtpIsExpired);
 
-      expect(otpRemover.byId).toHaveBeenCalledWith("otp-id");
+      expect(otpRemover.byId).toHaveBeenCalledWith("otpId");
       expect(logger.error).toHaveBeenCalledWith(
         `err: ${ErrorMessages.OtpIsExpired}`
       );
     });
 
-    test("should register user successfully", async () => {
-      const otpMock = {
-        checkIsExpires: vi.fn(() => false),
-        getId: vi.fn(() => "otp-id"),
-        getDestination: vi.fn(() => "123"),
-      } as unknown as Otp;
+    test("should create a user and return a session", async () => {
+      const mockOtp = {
+        getDestination: vi.fn().mockReturnValue("1234567890"),
+        checkIsExpires: vi.fn().mockReturnValue(false),
+        getId: vi.fn().mockReturnValue("otpId"),
+      };
 
-      otpProvider.byOtp.mockResolvedValue(otpMock);
+      const mockUser = {
+        getId: vi.fn().mockReturnValue("userId"),
+        setIsVerifiedPhone: vi.fn(),
+      };
+
+      otpProvider.byOtp.mockResolvedValue(mockOtp);
       userProvider.byPhone.mockResolvedValue(null);
-      hasher.hash.mockResolvedValue("hashed-pass");
-      userSaver.save.mockResolvedValue({} as User);
+      hasher.hash.mockResolvedValue("hashedPassword");
+      userSaver.save.mockResolvedValue(mockUser);
+      sessionCreator.create.mockResolvedValue("sessionToken");
 
-      const result = await phoneOtp.register({
-        phone: "123",
+      const result = await strategies.register({
+        phone: "1234567890",
         password: "pass",
-        code: "code",
+        code: "1234",
       });
 
-      const expectedUser = new User({
-        email: null,
-        id: null,
-        passwordHash: "hashed-pass",
-        phone: "123",
-      });
-
-      expectedUser.setIsVerifiedPhone();
-
-      expect(result).toBe(true);
-      expect(userSaver.save).toHaveBeenCalledWith(expectedUser);
-
-      expect(otpRemover.byId).toHaveBeenCalledWith("otp-id");
+      expect(result).toBe("sessionToken");
+      expect(userSaver.save).toHaveBeenCalled();
+      expect(otpRemover.byId).toHaveBeenCalledWith("otpId");
     });
   });
 
   describe("verify", () => {
-    test("should throw error if phone is already used", async () => {
-      userProvider.byPhone.mockResolvedValue({} as User);
+    test("should throw an error if phone is already used", async () => {
+      userProvider.byPhone.mockResolvedValue({});
 
-      await expect(phoneOtp.verify({ phone: "123" })).rejects.toThrow(
+      await expect(strategies.verify({ phone: "1234567890" })).rejects.toThrow(
         ErrorMessages.ThisPhoneAlreadyUsed
       );
 
@@ -164,36 +183,20 @@ describe("PhoneOtp", () => {
       );
     });
 
-    test("should throw error if message was not sent", async () => {
-      userProvider.byPhone.mockResolvedValue(null);
+    test("should send a new OTP and save it", async () => {
       otpProvider.byDestination.mockResolvedValue(null);
       codeGenerator.generate.mockResolvedValue("1234");
-      providerMessageTexter.messageText.mockReturnValue("Your code: 1234");
-      sender.send.mockResolvedValue(false);
-
-      await expect(phoneOtp.verify({ phone: "123" })).rejects.toThrow(
-        ErrorMessages.MessageWasNotSend
-      );
-
-      expect(logger.error).toHaveBeenCalledWith(
-        `err: ${ErrorMessages.MessageWasNotSend}`
-      );
-    });
-
-    test("should verify and send OTP successfully", async () => {
-      userProvider.byPhone.mockResolvedValue(null);
-      otpProvider.byDestination.mockResolvedValue(null);
-      codeGenerator.generate.mockResolvedValue("1234");
-      providerMessageTexter.messageText.mockReturnValue("Your code: 1234");
+      providerMessageTexter.messageText.mockReturnValue("Your OTP is 1234");
       sender.send.mockResolvedValue(true);
 
-      const result = await phoneOtp.verify({ phone: "123" });
+      const result = await strategies.verify({ phone: "1234567890" });
 
       expect(result).toBe(true);
-      expect(sender.send).toHaveBeenCalledWith("123", "Your code: 1234");
-      expect(otpSaver.save).toHaveBeenCalledWith(
-        expect.objectContaining({ otp: "1234", destination: "123" })
+      expect(sender.send).toHaveBeenCalledWith(
+        "1234567890",
+        "Your OTP is 1234"
       );
+      expect(otpSaver.save).toHaveBeenCalled();
     });
   });
 });

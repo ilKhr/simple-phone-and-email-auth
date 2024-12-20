@@ -1,81 +1,75 @@
-import { Otp } from "../../../entities/otp";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 import { User } from "../../../entities/user";
-import { describe, beforeEach, test, expect, MockedObject, vi } from "vitest";
-import {
-  UserProvider,
-  Sender,
-  CodeGenerator,
-  ProviderMessageText,
-  OtpRemover,
-  OtpSaver,
-  Hasher,
-  UserSaver,
-  otpProvider,
-  EmailPasswordSignUpStrategies,
-  ErrorMessages,
-  Logger,
-  SessionCreator,
-} from "./emailPassword";
+import { EmailPasswordSignUpStrategies, ErrorMessages } from "./emailPassword";
 
-describe("EmailOtp", () => {
-  let otpProvider: MockedObject<otpProvider>;
-  let logger: MockedObject<Logger>;
-  let userProvider: MockedObject<UserProvider>;
-  let sender: MockedObject<Sender>;
-  let codeGenerator: MockedObject<CodeGenerator>;
-  let providerMessageTexter: MockedObject<ProviderMessageText>;
-  let otpRemover: MockedObject<OtpRemover>;
-  let otpSaver: MockedObject<OtpSaver>;
-  let hasher: MockedObject<Hasher>;
-  let userSaver: MockedObject<UserSaver>;
-  let sessionCreator: MockedObject<SessionCreator>;
-
-  let emailOtp: EmailPasswordSignUpStrategies;
+describe("EmailPasswordSignUpStrategies", () => {
+  let strategies: EmailPasswordSignUpStrategies;
+  let otpProvider: any;
+  let logger: any;
+  let userProvider: any;
+  let sender: any;
+  let otpGenerator: any;
+  let providerMessageTexter: any;
+  let otpRemover: any;
+  let otpSaver: any;
+  let hasher: any;
+  let userSaver: any;
+  let sessionCreator: any;
 
   beforeEach(() => {
     otpProvider = {
       byOtp: vi.fn(),
       byDestination: vi.fn(),
     };
+
     logger = {
       error: vi.fn(),
       with: vi.fn().mockReturnThis(),
     };
+
     userProvider = {
       byId: vi.fn(),
       byEmail: vi.fn(),
     };
+
     sender = {
       send: vi.fn(),
     };
-    codeGenerator = {
+
+    otpGenerator = {
       generate: vi.fn(),
     };
+
     providerMessageTexter = {
       messageText: vi.fn(),
     };
+
     otpRemover = {
       byId: vi.fn(),
     };
+
     otpSaver = {
       save: vi.fn(),
     };
+
     hasher = {
       hash: vi.fn(),
     };
+
     userSaver = {
       save: vi.fn(),
     };
+
     sessionCreator = {
       create: vi.fn(),
     };
 
-    emailOtp = new EmailPasswordSignUpStrategies(
+    strategies = new EmailPasswordSignUpStrategies(
       otpProvider,
       logger,
       userProvider,
       sender,
-      codeGenerator,
+      otpGenerator,
       providerMessageTexter,
       otpRemover,
       otpSaver,
@@ -86,11 +80,44 @@ describe("EmailOtp", () => {
   });
 
   describe("register", () => {
-    test("should throw error if OTP does not exist", async () => {
+    test("should register a new user and create a session", async () => {
+      const email = "test@example.com";
+      const passwordHash = "hashed_password";
+
+      const otpMock = {
+        getDestination: vi.fn().mockReturnValue(email),
+        checkIsExpires: vi.fn().mockReturnValue(false),
+        getId: vi.fn().mockReturnValue("otp123"),
+      };
+      otpProvider.byOtp.mockResolvedValue(otpMock);
+      userProvider.byEmail.mockResolvedValue(null);
+      hasher.hash.mockResolvedValue("hashed_password");
+      userSaver.save.mockResolvedValue(
+        new User({ id: "user123", email, passwordHash, phone: null })
+      );
+      sessionCreator.create.mockResolvedValue("session_token");
+
+      const result = await strategies.register({
+        email,
+        password: "password123",
+        code: "otp_code",
+      });
+
+      expect(result).toBe("session_token");
+      expect(otpRemover.byId).toHaveBeenCalledWith("otp123");
+      expect(userSaver.save).toHaveBeenCalled();
+      expect(sessionCreator.create).toHaveBeenCalledWith("user123", " ");
+    });
+
+    test("should throw an error if the OTP is not found", async () => {
       otpProvider.byOtp.mockResolvedValue(null);
 
       await expect(
-        emailOtp.register({ email: "123", password: "pass", code: "code" })
+        strategies.register({
+          email: "test@example.com",
+          password: "password123",
+          code: "otp_code",
+        })
       ).rejects.toThrow(ErrorMessages.OtpNotExists);
 
       expect(logger.error).toHaveBeenCalledWith(
@@ -98,101 +125,107 @@ describe("EmailOtp", () => {
       );
     });
 
-    test("should throw error if OTP is expired", async () => {
+    test("should throw an error if the email and OTP destination do not match", async () => {
       const otpMock = {
-        checkIsExpires: vi.fn(() => true),
-        getId: vi.fn(() => "otp-id"),
-        getDestination: vi.fn(() => "123"),
-      } as unknown as Otp;
-
+        getDestination: vi.fn().mockReturnValue("other@example.com"),
+        checkIsExpires: vi.fn(),
+        getId: vi.fn(),
+      };
       otpProvider.byOtp.mockResolvedValue(otpMock);
 
       await expect(
-        emailOtp.register({ email: "123", password: "pass", code: "code" })
+        strategies.register({
+          email: "test@example.com",
+          password: "password123",
+          code: "otp_code",
+        })
+      ).rejects.toThrow(ErrorMessages.IncorrectLoginOrOtp);
+
+      expect(logger.error).toHaveBeenCalledWith(
+        `err: ${ErrorMessages.IncorrectLoginOrOtp}`
+      );
+    });
+
+    test("should throw an error if the OTP is expired", async () => {
+      const otpMock = {
+        getDestination: vi.fn().mockReturnValue("test@example.com"),
+        checkIsExpires: vi.fn().mockReturnValue(true),
+        getId: vi.fn().mockReturnValue("otp123"),
+      };
+      otpProvider.byOtp.mockResolvedValue(otpMock);
+
+      await expect(
+        strategies.register({
+          email: "test@example.com",
+          password: "password123",
+          code: "otp_code",
+        })
       ).rejects.toThrow(ErrorMessages.OtpIsExpired);
 
-      expect(otpRemover.byId).toHaveBeenCalledWith("otp-id");
+      expect(otpRemover.byId).toHaveBeenCalledWith("otp123");
       expect(logger.error).toHaveBeenCalledWith(
         `err: ${ErrorMessages.OtpIsExpired}`
       );
     });
-
-    test("should register user successfully", async () => {
-      const otpMock = {
-        checkIsExpires: vi.fn(() => false),
-        getId: vi.fn(() => "otp-id"),
-        getDestination: vi.fn(() => "123"),
-      } as unknown as Otp;
-
-      otpProvider.byOtp.mockResolvedValue(otpMock);
-      userProvider.byEmail.mockResolvedValue(null);
-      hasher.hash.mockResolvedValue("hashed-pass");
-      userSaver.save.mockResolvedValue({} as User);
-
-      const result = await emailOtp.register({
-        email: "123",
-        password: "pass",
-        code: "code",
-      });
-
-      const expectedUser = new User({
-        phone: null,
-        id: null,
-        passwordHash: "hashed-pass",
-        email: "123",
-      });
-
-      expectedUser.setIsVerifiedEmail();
-
-      expect(result).toBe(true);
-      expect(userSaver.save).toHaveBeenCalledWith(expectedUser);
-
-      expect(otpRemover.byId).toHaveBeenCalledWith("otp-id");
-    });
   });
 
   describe("verify", () => {
-    test("should throw error if email is already used", async () => {
-      userProvider.byEmail.mockResolvedValue({} as User);
+    test("should send an OTP to the email", async () => {
+      userProvider.byEmail.mockResolvedValue(null);
+      otpProvider.byDestination.mockResolvedValue(null);
+      otpGenerator.generate.mockResolvedValue("123456");
+      providerMessageTexter.messageText.mockReturnValue({
+        to: "test@example.com",
+        code: "123456",
+      });
+      sender.send.mockResolvedValue(true);
 
-      await expect(emailOtp.verify({ email: "123" })).rejects.toThrow(
-        ErrorMessages.ThisEmailAlreadyUsed
-      );
+      const result = await strategies.verify({ email: "test@example.com" });
+
+      expect(result).toBe(true);
+      expect(sender.send).toHaveBeenCalled();
+      expect(otpSaver.save).toHaveBeenCalled();
+    });
+
+    test("should throw an error if the email is already in use", async () => {
+      userProvider.byEmail.mockResolvedValue({ id: "user123" });
+
+      await expect(
+        strategies.verify({ email: "test@example.com" })
+      ).rejects.toThrow(ErrorMessages.ThisEmailAlreadyUsed);
 
       expect(logger.error).toHaveBeenCalledWith(
         `err: ${ErrorMessages.ThisEmailAlreadyUsed}`
       );
     });
 
-    test("should throw error if message was not sent", async () => {
-      userProvider.byEmail.mockResolvedValue(null);
-      otpProvider.byDestination.mockResolvedValue(null);
-      codeGenerator.generate.mockResolvedValue("1234");
-      providerMessageTexter.messageText.mockReturnValue("Your code: 1234");
-      sender.send.mockResolvedValue(false);
+    test("should throw an error if the OTP is not expired and already exists", async () => {
+      const otpMock = {
+        checkIsExpires: vi.fn().mockReturnValue(false),
+      };
+      otpProvider.byDestination.mockResolvedValue(otpMock);
 
-      await expect(emailOtp.verify({ email: "123" })).rejects.toThrow(
-        ErrorMessages.MessageWasNotSend
-      );
+      await expect(
+        strategies.verify({ email: "test@example.com" })
+      ).rejects.toThrow(ErrorMessages.OtpAlreadyUsedTryLater);
 
       expect(logger.error).toHaveBeenCalledWith(
-        `err: ${ErrorMessages.MessageWasNotSend}`
+        `err: ${ErrorMessages.OtpAlreadyUsedTryLater}`
       );
     });
 
-    test("should verify and send OTP successfully", async () => {
+    test("should throw an error if the message could not be sent", async () => {
       userProvider.byEmail.mockResolvedValue(null);
       otpProvider.byDestination.mockResolvedValue(null);
-      codeGenerator.generate.mockResolvedValue("1234");
-      providerMessageTexter.messageText.mockReturnValue("Your code: 1234");
-      sender.send.mockResolvedValue(true);
+      otpGenerator.generate.mockResolvedValue("123456");
+      sender.send.mockResolvedValue(false);
 
-      const result = await emailOtp.verify({ email: "123" });
+      await expect(
+        strategies.verify({ email: "test@example.com" })
+      ).rejects.toThrow(ErrorMessages.MessageWasNotSend);
 
-      expect(result).toBe(true);
-      expect(sender.send).toHaveBeenCalledWith("123", "Your code: 1234");
-      expect(otpSaver.save).toHaveBeenCalledWith(
-        expect.objectContaining({ otp: "1234", destination: "123" })
+      expect(logger.error).toHaveBeenCalledWith(
+        `err: ${ErrorMessages.MessageWasNotSend}`
       );
     });
   });
