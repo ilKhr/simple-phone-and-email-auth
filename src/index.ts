@@ -1,27 +1,24 @@
 import bcrypt from "bcrypt";
 import pino from "pino";
-import { Server } from "./app/http/server";
-import { EmailPassword } from "./services/sso/internal/signIn/strategies/email/emailPassword";
-import { SsoService } from "./services/sso/internal/sso";
 import { PinoAdapter } from "./adapters/pino";
-import { SqliteUserRepository } from "./storage/sqlite3/user";
-import { SQLiteConnection } from "./storage/sqlite3/database";
-import { PasswordService } from "./services/password/password";
-import { RedisConnection } from "./storage/redis/database";
-import { SessionService } from "./services/session/internal/session";
-import { RedisSessionRepository } from "./storage/redis/session";
-import { EmailPasswordSignUpStrategies } from "./services/sso/internal/signUp/strategies/email/emailPassword";
+import { Server } from "./app/http/server";
 import { EmailService } from "./services/email/email";
+import { PasswordService } from "./services/password/password";
+import { SessionService } from "./services/session/internal/session";
+import { EmailPassword } from "./services/sso/internal/signIn/strategies/email/emailPassword";
+import { EmailPasswordSignUpStrategies } from "./services/sso/internal/signUp/strategies/email/emailPassword";
+import { SsoService } from "./services/sso/internal/sso";
+import { RedisConnection } from "./storage/redis/database";
+import { RedisSessionRepository } from "./storage/redis/session";
+import { SQLiteConnection } from "./storage/sqlite3/database";
+import { SqliteUserRepository } from "./storage/sqlite3/user";
 
 import * as configs from "./config/";
 import { Nodemailer } from "./services/email/integrations/nodemailer";
-import { otpGenerator, randomStringGenerator } from "./utils/gererators";
 import { MessageProvider } from "./services/messageProvider/messageProvider";
 import { LocalMessageProvideStrategies } from "./services/messageProvider/strategies/local";
-import { HttpRouter } from "./app/http/routes/router";
 import { SqliteOtpRepository } from "./storage/sqlite3/otp";
-
-console.log("KEK");
+import { otpGenerator, randomStringGenerator } from "./utils/gererators";
 
 (async () => {
   const mode = "local";
@@ -111,15 +108,7 @@ console.log("KEK");
     logger
   );
 
-  const router = HttpRouter(ssoService);
-
-  const server = new Server(config.config.services.sso.http);
-
-  Object.entries(router).forEach(([ednpoint, methods]) => {
-    Object.entries(methods).forEach(([m, sh]) => {
-      server.route(m, sh.schema, ednpoint, sh.handler);
-    });
-  });
+  const server = await Server(config.config.services.sso.http, ssoService);
 
   server.run(3000, (err, port) => {
     if (err) {

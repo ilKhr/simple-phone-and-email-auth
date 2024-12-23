@@ -1,22 +1,20 @@
-import { FromSchema, JSONSchema } from "json-schema-to-ts";
 import { SsoService } from "../../../../../../../../services/sso/internal/sso";
-import { Handler } from "../../../../../../server";
+import { Handler, ServerSchema } from "../../../../../../server";
 
 const schema = {
-  type: "object",
-  required: ["body", "response"],
-  properties: {
-    body: {
-      type: "object",
-      required: ["email"],
-      properties: {
-        email: {
-          type: "string",
-        },
+  description: "Verify user email",
+  body: {
+    type: "object",
+    required: ["email"],
+    properties: {
+      email: {
+        type: "string",
       },
-      additionalProperties: false,
     },
-    response: {
+    additionalProperties: false,
+  },
+  response: {
+    200: {
       type: "object",
       required: ["status"],
       properties: {
@@ -27,19 +25,29 @@ const schema = {
       },
       additionalProperties: false,
     },
+    400: {
+      type: "object",
+      required: ["error"],
+      properties: {
+        error: { type: "string" },
+      },
+      additionalProperties: false,
+    },
   },
-  additionalProperties: false,
-} as const satisfies JSONSchema;
+} as const satisfies ServerSchema;
 
 export const handlerFactory = (
   ssoService: SsoService
-): { handler: Handler<FromSchema<typeof schema>>; schema: typeof schema } => ({
-  handler: async (request, reply) => {
+): {
+  handler: Handler<typeof schema>;
+  schema: typeof schema;
+} => ({
+  handler: async (request) => {
     await ssoService.preRegister("EmailPasswordSignUpStrategy", {
       email: request.body.email,
     });
 
-    reply.send({ status: "ok" });
+    return { status: "ok" };
   },
   schema,
 });

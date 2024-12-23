@@ -1,56 +1,52 @@
-import { FromSchema, JSONSchema } from "json-schema-to-ts";
 import { SsoService } from "../../../../../../../../services/sso/internal/sso";
-import { Handler } from "../../../../../../server";
+import { Handler, ServerSchema } from "../../../../../../server";
 
 export const schema = {
-  type: "object",
-  required: ["body", "response"],
-  properties: {
-    body: {
-      type: "object",
-      required: ["email", "password", "code"],
-      properties: {
-        email: {
-          type: "string",
-        },
-        password: {
-          type: "string",
-        },
-        code: {
-          type: "string",
-        },
+  body: {
+    type: "object",
+    required: ["email", "password", "code"],
+    properties: {
+      email: {
+        type: "string",
       },
-      additionalProperties: false,
+      password: {
+        type: "string",
+      },
+      code: {
+        type: "string",
+      },
     },
-    response: {
+    additionalProperties: false,
+  },
+  response: {
+    200: {
       type: "object",
-      required: ["status"],
+      required: ["sessionId"],
       properties: {
-        status: {
+        sessionId: {
           type: "string",
-          enum: ["ok"],
         },
       },
       additionalProperties: false,
     },
   },
-  additionalProperties: false,
-} as const satisfies JSONSchema;
+} as const satisfies ServerSchema;
 
 export const handlerFactory = (
   ssoService: SsoService
-): Handler<FromSchema<typeof schema>> => {
-  return async (request, reply) => {
+): {
+  handler: Handler<typeof schema>;
+  schema: typeof schema;
+} => ({
+  handler: async (request) => {
     const sessionId = await ssoService.register(
       "EmailPasswordSignUpStrategy",
       request.body
     );
 
-    reply
-      .setCookie("sessionId", sessionId, {
-        httpOnly: true,
-        maxAge: 1,
-      })
-      .send({ status: "ok" });
-  };
-};
+    return {
+      sessionId,
+    };
+  },
+  schema,
+});

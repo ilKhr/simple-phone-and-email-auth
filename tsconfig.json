@@ -6,6 +6,7 @@
     "moduleDetection": "force",
     "rootDir": "./src",
     "types": ["node"],
+    "maxNodeModuleJsDepth": 10,
 
     "outDir": "./dist",
     "esModuleInterop": true,

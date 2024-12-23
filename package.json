@@ -1,7 +1,11 @@
 {
   "name": "simple-phone-and-email-auth",
   "packageManager": "yarn@4.4.0",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "devDependencies": {
+    "@fastify/swagger-ui": "^5.2.0",
     "@types/bcrypt": "^5",
     "@types/node": "^22.10.2",
     "@types/nodemailer": "^6",
