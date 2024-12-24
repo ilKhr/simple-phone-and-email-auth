@@ -1,4 +1,4 @@
-import { User } from "../../../entities/user";
+import { User } from "src/services/sso/internal/entities/user";
 
 const logSeparator = ";";
 
@@ -16,7 +16,7 @@ export interface Logger {
 }
 
 export interface SessionCreator {
-  create: (userId: string, idAddress: string) => Promise<string>;
+  create: (userId: number, idAddress: string) => Promise<string>;
 }
 
 const ErrorMessages = {

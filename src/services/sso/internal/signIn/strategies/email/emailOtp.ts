@@ -1,5 +1,9 @@
-import { Otp, OtpWithId } from "../../../entities/otp";
-import { UserWithId } from "../../../entities/user";
+import {
+  OtpWithId,
+  Otp,
+  OtpCreate,
+} from "src/services/sso/internal/entities/otp";
+import { UserWithId } from "src/services/sso/internal/entities/user";
 
 // TODO: add normal time functions
 const getExpiresAt = () => new Date(new Date().getTime() + 5 * 60000);
@@ -7,7 +11,7 @@ const getExpiresAt = () => new Date(new Date().getTime() + 5 * 60000);
 const logSeparator = ";";
 
 interface otpProvider {
-  byOtp: (e: string) => Promise<OtpWithId | null>;
+  byOtp: (val: string) => Promise<OtpWithId | null>;
 }
 
 interface Logger {
@@ -16,7 +20,7 @@ interface Logger {
 }
 
 interface UserProvider {
-  byId: (id: string) => Promise<UserWithId | null>;
+  byId: (id: number) => Promise<UserWithId | null>;
   byEmail: (email: string) => Promise<UserWithId | null>;
 }
 
@@ -33,7 +37,7 @@ interface ProviderMessageText {
 }
 
 interface OtpRemover {
-  byId: (id: string) => Promise<boolean>;
+  byId: (id: number) => Promise<boolean>;
 }
 
 interface OtpSaver {
@@ -41,7 +45,7 @@ interface OtpSaver {
 }
 
 interface SessionCreator {
-  create: (userId: string, idAddress: string) => Promise<string>;
+  create: (userId: number, idAddress: string) => Promise<string>;
 }
 
 const ErrorMessages = {
@@ -157,10 +161,9 @@ export class EmailOtp {
       throw new Error(ErrorMessages.MessageWasNotSend);
     }
 
-    const otp = new Otp({
+    const otp = OtpCreate({
       destination: credentials.email,
       expiresAt: getExpiresAt(),
-      l: this.logger, // TODO: add normal pass logger
       otp: code,
       userId: user.getId(),
       id: null,

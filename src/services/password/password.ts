@@ -3,24 +3,24 @@ interface Hasher {
   compare: (p: string, h: string) => Promise<boolean>;
 }
 
-export class PasswordService {
-  private static instance: PasswordService | null = null;
-
-  private constructor(private hasher: Hasher) {}
-
-  public static getInstance(hasher: Hasher): PasswordService {
-    if (!PasswordService.instance) {
-      PasswordService.instance = new PasswordService(hasher);
-    }
-    return PasswordService.instance;
-  }
-
-  public async hash(password: string): Promise<string> {
-    const saltRounds = 10;
-    return this.hasher.hash(password, saltRounds);
-  }
-
-  public async compare(password: string, hash: string): Promise<boolean> {
-    return this.hasher.compare(password, hash);
-  }
+interface GeneralParams {
+  hasher: Hasher;
 }
+
+const hash = async (gp: GeneralParams, password: string): Promise<string> => {
+  const saltRounds = 10;
+  return gp.hasher.hash(password, saltRounds);
+};
+
+const compare = async (
+  gp: GeneralParams,
+  password: string,
+  hash: string
+): Promise<boolean> => {
+  return gp.hasher.compare(password, hash);
+};
+
+export const PasswordService = (gp: GeneralParams) => ({
+  hash: (password: string) => hash(gp, password),
+  compare: (password: string, hash: string) => compare(gp, password, hash),
+});

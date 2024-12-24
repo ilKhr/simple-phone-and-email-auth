@@ -1,4 +1,4 @@
-import { IdRequired } from "../../../../utils/types";
+import { IdRequired } from "src/utils/types";
 
 type Contact = {
   isVerified: boolean;
@@ -12,84 +12,67 @@ type Contacts = {
 
 export type UserWithId = IdRequired<User>;
 
-export class User {
-  private id: string | null;
-  private passwordHash: string;
-  private contacts: Contacts = {
-    email: {
-      isVerified: false,
-      value: null,
-    },
-    phone: {
-      isVerified: false,
-      value: null,
+export type UserParams = {
+  id: number | null;
+  passwordHash: string;
+  email: string | null;
+  phone: string | null;
+};
+
+type UserStruct = {
+  id: number | null;
+  passwordHash: string;
+  contacts: Contacts;
+};
+
+const checkIsVerifiedContact = (user: UserStruct, field: "email" | "phone") => {
+  return user.contacts[field].isVerified;
+};
+
+const setIsVerifiedContact = (user: UserStruct, field: "email" | "phone") => {
+  user.contacts[field].isVerified = true;
+};
+
+const getPasswordHash = (user: UserStruct) => user.passwordHash;
+
+const getEmail = (user: UserStruct) => user.contacts.email.value;
+
+const getPhone = (user: UserStruct) => user.contacts.phone.value;
+
+const getId = (user: UserStruct) => user.id;
+
+const getContacts = (user: UserStruct) => user.contacts;
+
+export const UserCreate = (params: UserParams) => {
+  const user: UserStruct = {
+    id: params.id,
+    passwordHash: params.passwordHash,
+    contacts: {
+      email: {
+        isVerified: false,
+        value: params.email,
+      },
+      phone: {
+        isVerified: false,
+        value: params.phone,
+      },
     },
   };
 
-  constructor(params: {
-    id: string | null;
-    passwordHash: string;
-    email: string | null;
-    phone: string | null;
-  }) {
-    this.id = params.id;
-    this.passwordHash = params.passwordHash;
-    this.contacts.email.value = params.email;
-    this.contacts.phone.value = params.phone;
-  }
+  return {
+    checkIsVerifiedEmail: () => checkIsVerifiedContact(user, "email"),
+    checkIsVerifiedPhone: () => checkIsVerifiedContact(user, "phone"),
+    setIsVerifiedEmail: () => setIsVerifiedContact(user, "email"),
+    setIsVerifiedPhone: () => setIsVerifiedContact(user, "phone"),
+    getPasswordHash: () => getPasswordHash(user),
+    getEmail: () => getEmail(user),
+    getId: () => getId(user),
+    getPhone: () => getPhone(user),
+    getContacts: () => getContacts(user),
+    setId: (newId: number) => {
+      user.id = newId;
+    },
+  };
+};
 
-  private checkIsVerifiedContact(field: "email" | "phone") {
-    return this.contacts[field].isVerified;
-  }
-
-  public checkIsVerifiedEmail() {
-    return this.checkIsVerifiedContact("email");
-  }
-
-  public checkIsVerifiedPhone() {
-    return this.checkIsVerifiedContact("phone");
-  }
-
-  private setIsVerifiedContact(field: "email" | "phone") {
-    this.contacts[field].isVerified = true;
-  }
-
-  public setIsVerifiedEmail() {
-    return this.setIsVerifiedContact("email");
-  }
-
-  public setIsVerifiedPhone() {
-    return this.setIsVerifiedContact("phone");
-  }
-
-  getPasswordHash() {
-    return this.passwordHash;
-  }
-
-  getEmail() {
-    return this.contacts.email.value;
-  }
-
-  getId() {
-    return this.id;
-  }
-  getPhone() {
-    return this.contacts.email.value;
-  }
-
-  getContacts() {
-    return this.contacts;
-  }
-
-  setId(id: string) {
-    this.id = id;
-  }
-}
-
-// мы создали модель пользователя - успех
-// нам нужно начать ей оперировать
-// в каком-то месте мы получаем юзера из базы и начинаем его гонять по системе
-// здесь в entity я хочу обозначить основные методы, которые есть у юзера
-// например проверить isVerified у email или телефона
-// я бы хотел, чтобы я мог вызвать этот метод у объекта User
-// для этого мне нужно возвращать объект User и у него будет как раз доступ
+export type User = ReturnType<typeof UserCreate>;

@@ -1,14 +1,12 @@
 {
   "compilerOptions": {
-    "target": "es2016",
-    "module": "commonjs",
-    "moduleResolution": "node",
+    "target": "es2022",
+    "lib": ["ES2023"],
+    "module": "node16",
     "moduleDetection": "force",
-    "rootDir": "./src",
+    "moduleResolution": "node16",
     "types": ["node"],
-    "maxNodeModuleJsDepth": 10,
-
-    "outDir": "./dist",
+    "outDir": "dist",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "noEmitOnError": true,
@@ -33,7 +31,14 @@
     "noPropertyAccessFromIndexSignature": true,
     "allowUnusedLabels": true,
     "allowUnreachableCode": true,
-
-    "skipLibCheck": true
-  }
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true,
+    "inlineSourceMap": false,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "baseUrl": "."
+  },
+  "include": ["src/**/*.ts", "typings/**/*"],
+  "exclude": ["dist", "node_modules"]
 }

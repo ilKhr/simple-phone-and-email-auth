@@ -1,6 +1,7 @@
+import { User } from "src/services/sso/internal/entities/user";
+import { EmailPasswordSignUpStrategies } from "src/services/sso/internal/signUp/strategies/email/emailPassword";
+import { ErrorMessages } from "src/services/sso/internal/sso";
 import { beforeEach, describe, expect, test, vi } from "vitest";
-import { User } from "../../../entities/user";
-import { EmailPasswordSignUpStrategies, ErrorMessages } from "./emailPassword";
 
 describe("EmailPasswordSignUpStrategies", () => {
   let strategies: EmailPasswordSignUpStrategies;
@@ -80,7 +81,7 @@ describe("EmailPasswordSignUpStrategies", () => {
   });
 
   describe("register", () => {
-    test("should register a new user and create a session", async () => {
+    test("should register a UserCreate and create a session", async () => {
       const email = "test@example.com";
       const passwordHash = "hashed_password";
 
@@ -93,7 +94,7 @@ describe("EmailPasswordSignUpStrategies", () => {
       userProvider.byEmail.mockResolvedValue(null);
       hasher.hash.mockResolvedValue("hashed_password");
       userSaver.save.mockResolvedValue(
-        new User({ id: "user123", email, passwordHash, phone: null })
+        UserCreate({ id: 123, email, passwordHash, phone: null })
       );
       sessionCreator.create.mockResolvedValue("session_token");
 

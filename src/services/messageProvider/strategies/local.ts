@@ -1,55 +1,53 @@
-import { emailTemplates } from "./email/templates";
 import {
+  Platforms,
   MessageTypes,
   MessageTypesParams,
-  Platforms,
   PlatformsMessageTypes,
-} from "../messageProvider";
-import { phoneTemplates } from "./phone/templates";
+} from "src/services/messageProvider/messageProvider";
+import { emailTemplates } from "src/services/messageProvider/strategies/email/templates";
+import { phoneTemplates } from "src/services/messageProvider/strategies/phone/templates";
 
-// Strategies for get Message from RAM memory. Because we can to want take messages from network or other places
-export class LocalMessageProvideStrategies {
-  private platformTemplates: {
-    [K in Platforms]: {
-      [T in MessageTypes]: (
-        params: MessageTypesParams[T]
-      ) => PlatformsMessageTypes[K];
-    };
-  } = {
-    phone: phoneTemplates,
-    email: emailTemplates,
+const platformTemplates: {
+  [K in Platforms]: {
+    [T in MessageTypes]: (
+      params: MessageTypesParams[T]
+    ) => PlatformsMessageTypes[K];
   };
+} = {
+  phone: phoneTemplates,
+  email: emailTemplates,
+};
 
-  public byPlatformAndType<T extends MessageTypes, P extends Platforms>(
-    platform: P,
-    type: T
-  ): (params: MessageTypesParams[T]) => PlatformsMessageTypes[P] {
-    // return this.platformTemplates[platform][type]; get TS error
+const getByPlatform = <P extends Platforms>(
+  platform: P
+): {
+  [T in MessageTypes]: (
+    params: MessageTypesParams[T]
+  ) => PlatformsMessageTypes[P];
+} => {
+  return platformTemplates[platform];
+};
 
-    const templates = this.getByPlatform(platform);
-    const template = this.getByType(templates, type);
-
-    return template;
-  }
-
-  private getByPlatform<P extends Platforms>(
-    platform: P
-  ): {
+const getByType = <T extends MessageTypes, P extends Platforms>(
+  templates: {
     [T in MessageTypes]: (
       params: MessageTypesParams[T]
     ) => PlatformsMessageTypes[P];
-  } {
-    return this.platformTemplates[platform];
-  }
+  },
+  type: T
+): ((params: MessageTypesParams[T]) => PlatformsMessageTypes[P]) => {
+  return templates[type];
+};
 
-  private getByType<T extends MessageTypes, P extends Platforms>(
-    templates: {
-      [T in MessageTypes]: (
-        params: MessageTypesParams[T]
-      ) => PlatformsMessageTypes[P];
-    },
-    type: T
-  ): (params: MessageTypesParams[T]) => PlatformsMessageTypes[P] {
-    return templates[type];
-  }
-}
+const byPlatformAndType = <T extends MessageTypes, P extends Platforms>(
+  platform: P,
+  type: T
+): ((params: MessageTypesParams[T]) => PlatformsMessageTypes[P]) => {
+  const templates = getByPlatform(platform);
+  const template = getByType(templates, type);
+  return template;
+};
+
+export const LocalMessageProvideStrategies = () => ({
+  byPlatformAndType,
+});

@@ -1,127 +1,166 @@
 import sqlite3 from "sqlite3";
 import { Database } from "sqlite";
-import { User, UserWithId } from "../../services/sso/internal/entities/user";
-import { checkHasId } from "../utils/checkHasId";
+import {
+  User,
+  UserCreate,
+  UserWithId,
+} from "src/services/sso/internal/entities/user";
+import { checkHasId } from "src/storage/utils/checkHasId";
 
 const logSeparator = ";";
 
-interface Logger {
-  error: (msg: string) => void;
-  with: (msg: string) => Logger;
-}
-
 const ErrorMessages = {
   LastIdNotExists: "Last id not exists",
-  ChangesNotExists: "ChangesNotExists",
+  ChangesNotExists: "Changes not exists",
   EntityIdNotExists: "Entity id not exists",
 };
 
-interface UserRow {
-  id: string | null;
+type UserRow = {
+  id: number;
   password_hash: string;
   email_value: string | null;
   email_is_verified: number;
   phone_value: string | null;
   phone_is_verified: number;
+};
+
+interface Logger {
+  error: (msg: string) => void;
+  info: (msg: string) => void;
+  with: (msg: string) => Logger;
 }
 
-export class SqliteUserRepository {
-  private op = "user.storage.sqliteUserRepository";
-  private logger: Logger;
+type GeneralParams = {
+  db: Database<sqlite3.Database, sqlite3.Statement>;
+  logger: Logger;
+};
 
-  private db: Database<sqlite3.Database, sqlite3.Statement>;
+const initializeUserTable = async (gp: GeneralParams): Promise<void> => {
+  const op = `.initialize${logSeparator}`;
+  const scopedLogger = gp.logger.with(op);
 
-  constructor(db: Database<sqlite3.Database, sqlite3.Statement>, l: Logger) {
-    this.db = db;
-    this.logger = l.with(`op: ${this.op}`);
-  }
-
-  async save(user: User): Promise<UserWithId> {
-    const op = `.save${logSeparator}`;
-    const logger = this.logger.with(`${op}`);
-
-    if (user.getId()) {
-      await this.db.run(
-        `UPDATE users SET password_hash = ?, email_value = ?, email_is_verified = ?, phone_value = ?, phone_is_verified = ? WHERE id = ?`,
-        user.getPasswordHash(),
-        user.getContacts().email.value,
-        user.getContacts().email.isVerified,
-        user.getContacts().phone.value,
-        user.getContacts().phone.isVerified,
-        user.getId()
+  try {
+    await gp.db.exec(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY,
+        password_hash TEXT NOT NULL,
+        email_value TEXT NULL,
+        email_is_verified INTEGER NOT NULL,
+        phone_value TEXT NULL,
+        phone_is_verified INTEGER NOT NULL
       );
-    } else {
-      const result = await this.db.run(
-        `INSERT INTO users (password_hash, email_value, email_is_verified, phone_value, phone_is_verified) VALUES (?, ?, ?, ?, ?)`,
-        user.getPasswordHash(),
-        user.getContacts().email.value,
-        user.getContacts().email.isVerified,
-        user.getContacts().phone.value,
-        user.getContacts().phone.isVerified
-      );
+    `);
+    scopedLogger.info("Table 'users' initialized successfully");
+  } catch (error) {
+    scopedLogger.error(`err: Failed to initialize table 'users': ${error}`);
+    throw error;
+  }
+};
 
-      if (!result.lastID) {
-        logger.error(`err: ${ErrorMessages.LastIdNotExists}`);
-        throw new Error(ErrorMessages.LastIdNotExists);
-      }
+const save = async (gp: GeneralParams, user: User): Promise<UserWithId> => {
+  const op = `.save${logSeparator}`;
+  const scopedLogger = gp.logger.with(op);
 
-      user.setId(result.lastID.toString());
+  if (user.getId()) {
+    await gp.db.run(
+      `UPDATE users SET password_hash = ?, email_value = ?, email_is_verified = ?, phone_value = ?, phone_is_verified = ? WHERE id = ?`,
+      user.getPasswordHash(),
+      user.getContacts().email.value,
+      user.getContacts().email.isVerified,
+      user.getContacts().phone.value,
+      user.getContacts().phone.isVerified,
+      user.getId()
+    );
+  } else {
+    const result = await gp.db.run(
+      `INSERT INTO users (password_hash, email_value, email_is_verified, phone_value, phone_is_verified) VALUES (?, ?, ?, ?, ?)`,
+      user.getPasswordHash(),
+      user.getContacts().email.value,
+      user.getContacts().email.isVerified,
+      user.getContacts().phone.value,
+      user.getContacts().phone.isVerified
+    );
+
+    if (!result.lastID) {
+      scopedLogger.error(`err: ${ErrorMessages.LastIdNotExists}`);
+      throw new Error(ErrorMessages.LastIdNotExists);
     }
 
-    return user as UserWithId;
+    user.setId(result.lastID);
   }
 
-  async byId(id: string): Promise<UserWithId | null> {
-    const row = await this.db.get<UserRow>(
-      `SELECT * FROM users WHERE id = ?`,
-      id
-    );
-    return row ? this.mapToUser(row) : null;
+  return user as UserWithId;
+};
+
+const byId = async (
+  gp: GeneralParams,
+  id: number
+): Promise<UserWithId | null> => {
+  const row = await gp.db.get<UserRow>(`SELECT * FROM users WHERE id = ?`, id);
+  return row ? mapToUser(row) : null;
+};
+
+const byEmail = async (
+  gp: GeneralParams,
+  email: string
+): Promise<UserWithId | null> => {
+  const row = await gp.db.get<UserRow>(
+    `SELECT * FROM users WHERE email_value = ?`,
+    email
+  );
+  return row ? mapToUser(row) : null;
+};
+
+const byPhone = async (
+  gp: GeneralParams,
+  phone: string
+): Promise<UserWithId | null> => {
+  const row = await gp.db.get<UserRow>(
+    `SELECT * FROM users WHERE phone_value = ?`,
+    phone
+  );
+  return row ? mapToUser(row) : null;
+};
+
+const deleteUserById = async (
+  gp: GeneralParams,
+  id: number
+): Promise<boolean> => {
+  const op = `.deleteById${logSeparator}`;
+  const scopedLogger = gp.logger.with(op);
+
+  const result = await gp.db.run(`DELETE FROM users WHERE id = ?`, id);
+
+  if (!result.changes && result.changes != 0) {
+    scopedLogger.error(`err: ${ErrorMessages.ChangesNotExists}`);
+    throw new Error(ErrorMessages.ChangesNotExists);
   }
 
-  async byEmail(email: string): Promise<UserWithId | null> {
-    const row = await this.db.get<UserRow>(
-      `SELECT * FROM users WHERE email_value = ?`,
-      email
-    );
-    return row ? this.mapToUser(row) : null;
+  return result.changes > 0;
+};
+
+const mapToUser = (row: UserRow): UserWithId => {
+  const user = UserCreate({
+    email: row.email_value,
+    id: row.id,
+    passwordHash: row.password_hash,
+    phone: row.phone_value,
+  });
+
+  if (!checkHasId(user)) {
+    throw new Error(ErrorMessages.EntityIdNotExists);
   }
 
-  async byPhone(phone: string): Promise<UserWithId | null> {
-    const row = await this.db.get<UserRow>(
-      `SELECT * FROM users WHERE phone_value = ?`,
-      phone
-    );
-    return row ? this.mapToUser(row) : null;
-  }
+  return user;
+};
 
-  async deleteById(id: string): Promise<boolean> {
-    const op = `.deleteById${logSeparator}`;
-    const logger = this.logger.with(`${op}`);
-
-    const result = await this.db.run(`DELETE FROM users WHERE id = ?`, id);
-
-    if (!result.changes && result.changes != 0) {
-      logger.error(`err: ${ErrorMessages.ChangesNotExists}`);
-      throw new Error(ErrorMessages.ChangesNotExists);
-    }
-
-    return result.changes > 0;
-  }
-
-  // Convert db row to User object
-  private mapToUser(row: UserRow): UserWithId {
-    const user = new User({
-      email: row.email_value,
-      id: row.id,
-      passwordHash: row.password_hash,
-      phone: row.phone_value,
-    });
-
-    if (!checkHasId(user)) {
-      throw new Error(ErrorMessages.EntityIdNotExists);
-    }
-
-    return user;
-  }
-}
+export const SqliteUserRepository = async (gp: GeneralParams) => {
+  await initializeUserTable(gp);
+  return {
+    save: (user: User) => save(gp, user),
+    byId: (id: number) => byId(gp, id),
+    byEmail: (email: string) => byEmail(gp, email),
+    byPhone: (phone: string) => byPhone(gp, phone),
+    deleteUserById: (id: number) => deleteUserById(gp, id),
+  };
+};

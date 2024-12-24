@@ -1,5 +1,6 @@
+import { PhonePasswordSignUpStrategies } from "src/services/sso/internal/signUp/strategies/phone/phonePassword";
+import { ErrorMessages } from "src/services/sso/internal/sso";
 import { beforeEach, describe, expect, test, vi } from "vitest";
-import { PhonePasswordSignUpStrategies, ErrorMessages } from "./phonePassword";
 
 describe("PhonePasswordSignUpStrategies", () => {
   let otpProvider: any;

@@ -1,44 +1,48 @@
-import { IdRequired } from "../../../../utils/types";
+import { IdRequired } from "src/utils/types";
 
 export type SessionWithId = IdRequired<Session>;
 
-export class Session {
-  private id: string | null;
-  private userId: string;
-  private expiresAt: Date;
-  private ipAddress: string | null; // TODO: Make required
+export type SessionParams = {
+  id: string | null;
+  userId: number;
+  expiresAt: Date;
+  ipAddress: string | null; // TODO: Make required
+};
 
-  constructor(params: {
-    id: string | null;
-    userId: string;
-    expiresAt: Date;
-    ipAddress: string | null;
-  }) {
-    this.id = params.id;
-    this.userId = params.userId;
-    this.expiresAt = params.expiresAt;
-    this.ipAddress = params.ipAddress;
-  }
+type SessionStruct = {
+  id: string | null;
+  userId: number;
+  expiresAt: Date;
+  ipAddress: string | null;
+};
 
-  // Getters
-  public getId(): string | null {
-    return this.id;
-  }
+const setId = (session: SessionStruct, newId: string) => {
+  session.id = newId;
+};
 
-  public getUserId(): string {
-    return this.userId;
-  }
+const getId = (session: SessionStruct) => session.id;
 
-  public getExpiresAt(): Date {
-    return this.expiresAt;
-  }
+const getUserId = (session: SessionStruct) => session.userId;
 
-  public getIpAddress(): string | null {
-    return this.ipAddress;
-  }
+const getExpiresAt = (session: SessionStruct) => session.expiresAt;
 
-  // Setters
-  public setId(id: string | null): void {
-    this.id = id;
-  }
-}
+const getIpAddress = (session: SessionStruct) => session.ipAddress;
+
+export const SessionCreate = (params: SessionParams) => {
+  const session: SessionStruct = {
+    id: params.id,
+    userId: params.userId,
+    expiresAt: params.expiresAt,
+    ipAddress: params.ipAddress,
+  };
+
+  return {
+    setId: (newId: string) => setId(session, newId),
+    getId: () => getId(session),
+    getUserId: () => getUserId(session),
+    getExpiresAt: () => getExpiresAt(session),
+    getIpAddress: () => getIpAddress(session),
+  };
+};
+
+export type Session = ReturnType<typeof SessionCreate>;

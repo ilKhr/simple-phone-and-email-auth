@@ -1,39 +1,41 @@
 import bcrypt from "bcrypt";
 import pino from "pino";
-import { PinoAdapter } from "./adapters/pino";
-import { Server } from "./app/http/server";
-import { EmailService } from "./services/email/email";
-import { PasswordService } from "./services/password/password";
-import { SessionService } from "./services/session/internal/session";
-import { EmailPassword } from "./services/sso/internal/signIn/strategies/email/emailPassword";
-import { EmailPasswordSignUpStrategies } from "./services/sso/internal/signUp/strategies/email/emailPassword";
-import { SsoService } from "./services/sso/internal/sso";
-import { RedisConnection } from "./storage/redis/database";
-import { RedisSessionRepository } from "./storage/redis/session";
-import { SQLiteConnection } from "./storage/sqlite3/database";
-import { SqliteUserRepository } from "./storage/sqlite3/user";
+import { version } from "package.json";
 
-import * as configs from "./config/";
-import { Nodemailer } from "./services/email/integrations/nodemailer";
-import { MessageProvider } from "./services/messageProvider/messageProvider";
-import { LocalMessageProvideStrategies } from "./services/messageProvider/strategies/local";
-import { SqliteOtpRepository } from "./storage/sqlite3/otp";
-import { otpGenerator, randomStringGenerator } from "./utils/gererators";
+import * as configs from "src/config/";
+
+import { Server } from "src/app/http/server";
+import { PinoAdapter } from "src/adapters/pino";
+import { EmailService } from "src/services/email/email";
+import { Nodemailer } from "src/services/email/integrations/nodemailer";
+import { MessageProvider } from "src/services/messageProvider/messageProvider";
+import { LocalMessageProvideStrategies } from "src/services/messageProvider/strategies/local";
+import { PasswordService } from "src/services/password/password";
+import { SessionService } from "src/services/session/internal/session";
+import { EmailPassword } from "src/services/sso/internal/signIn/strategies/email/emailPassword";
+import { EmailPasswordSignUpStrategies } from "src/services/sso/internal/signUp/strategies/email/emailPassword";
+import { SsoService } from "src/services/sso/internal/sso";
+import { RedisConnection } from "src/storage/redis/database";
+import { RedisSessionRepository } from "src/storage/redis/session";
+import { SQLiteConnection } from "src/storage/sqlite3/database";
+import { SqliteOtpRepository } from "src/storage/sqlite3/otp";
+import { SqliteUserRepository } from "src/storage/sqlite3/user";
+import { randomStringGenerator, otpGenerator } from "src/utils/gererators";
 
 (async () => {
   const mode = "local";
 
   const config = configs[mode];
 
+  const pinoLogger = pino({
+    level: "info",
+    transport: {
+      target: "pino-pretty",
+    },
+  });
+
   // TODO: setup logger for different MODE
-  const logger = new PinoAdapter(
-    pino({
-      level: "info",
-      transport: {
-        target: "pino-pretty",
-      },
-    })
-  );
+  const logger = new PinoAdapter(pinoLogger);
 
   // TODO: add config
   const connectionSqlite = await SQLiteConnection.getInstance(
@@ -50,21 +52,23 @@ import { otpGenerator, randomStringGenerator } from "./utils/gererators";
 
   const dbRedis = connectionRedis.getClient();
 
-  const userRepository = new SqliteUserRepository(dbSqlite, logger);
-  const sessionRepository = new RedisSessionRepository(
-    dbRedis,
-    { generateId: randomStringGenerator },
-    logger
-  );
+  const userRepository = await SqliteUserRepository({ db: dbSqlite, logger });
+  const sessionRepository = RedisSessionRepository({
+    generatorId: { generateId: randomStringGenerator },
+    logger,
+    redisClient: dbRedis,
+  });
 
-  const otpRepository = new SqliteOtpRepository(dbSqlite, logger);
+  const otpRepository = await SqliteOtpRepository({ db: dbSqlite, logger });
 
-  const localMessageStrategy = new LocalMessageProvideStrategies();
-  const messageProvider = new MessageProvider(localMessageStrategy);
+  const localMessageStrategy = LocalMessageProvideStrategies();
+  const messageProvider = MessageProvider({
+    templateProvider: localMessageStrategy,
+  });
 
-  const passwordService = PasswordService.getInstance(bcrypt);
+  const passwordService = PasswordService({ hasher: bcrypt });
 
-  const emailSender = new Nodemailer(config.config.services.email);
+  const emailSender = Nodemailer({ nmParams: config.config.services.email });
   const emailSendService = new EmailService(emailSender, logger);
 
   const sessionService = new SessionService(
@@ -108,12 +112,17 @@ import { otpGenerator, randomStringGenerator } from "./utils/gererators";
     logger
   );
 
-  const server = await Server(config.config.services.sso.http, ssoService);
+  const server = await Server({
+    logger: pinoLogger,
+    config: config.config.services.sso.http,
+    ssoService,
+  });
 
   server.run(3000, (err, port) => {
     if (err) {
       logger.error(`Server not started: ${err}`);
     }
     logger.info(`Server run on: ${port}`);
+    logger.info(`Version: ${version}`);
   });
 })();

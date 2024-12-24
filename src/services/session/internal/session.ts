@@ -1,5 +1,5 @@
-import { IdRequired } from "../../../utils/types";
-import { Session } from "./entities/session";
+import { Session } from "src/services/session/internal/entities/session";
+import { IdRequired } from "src/utils/types";
 
 const getExpiresAt = () => new Date(new Date().getTime() + 5 * 60000);
 
@@ -37,7 +37,7 @@ export class SessionService {
     this.logger = logger.with(`op: ${this.op}`);
   }
 
-  public async create(userId: string, ipAddress: string): Promise<string> {
+  public async create(userId: number, ipAddress: string): Promise<string> {
     const op = `.create`;
     const logger = this.logger.with(`${op}`);
 
@@ -53,7 +53,7 @@ export class SessionService {
 
     const session = await this.sessionCreator.save(
       /* TODO: replace getExpireAt */
-      new Session({ expiresAt: getExpiresAt(), id: null, ipAddress, userId })
+      SessionCreate({ expiresAt: getExpiresAt(), id: null, ipAddress, userId })
     );
 
     return session.getId();

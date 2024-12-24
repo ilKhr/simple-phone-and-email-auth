@@ -1,2 +1,2 @@
-export * as signIn from "./signIn";
-export * as signUp from "./signUp";
+export * as signIn from "src/app/http/handlers/sso/user/signIn";
+export * as signUp from "src/app/http/handlers/sso/user/signUp";

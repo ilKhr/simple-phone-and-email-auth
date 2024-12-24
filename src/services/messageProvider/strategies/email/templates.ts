@@ -1,8 +1,8 @@
 import {
-  EmailMessage,
   MessageTypes,
   MessageTypesParams,
-} from "../../messageProvider";
+  EmailMessage,
+} from "src/services/messageProvider/messageProvider";
 
 export const emailTemplates: {
   [T in MessageTypes]: (params: MessageTypesParams[T]) => EmailMessage;

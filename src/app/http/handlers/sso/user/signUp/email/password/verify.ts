@@ -1,5 +1,5 @@
-import { SsoService } from "../../../../../../../../services/sso/internal/sso";
-import { Handler, ServerSchema } from "../../../../../../server";
+import { ServerSchema, Handler } from "src/app/http/server";
+import { SsoService } from "src/services/sso/internal/sso";
 
 const schema = {
   description: "Verify user email",
@@ -30,6 +30,7 @@ const schema = {
       required: ["error"],
       properties: {
         error: { type: "string" },
+        message: { type: "string" },
       },
       additionalProperties: false,
     },

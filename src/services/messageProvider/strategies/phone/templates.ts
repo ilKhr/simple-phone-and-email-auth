@@ -2,7 +2,7 @@ import {
   MessageTypes,
   MessageTypesParams,
   PhoneMessage,
-} from "../../messageProvider";
+} from "src/services/messageProvider/messageProvider";
 
 export const phoneTemplates: {
   [T in MessageTypes]: (params: MessageTypesParams[T]) => PhoneMessage;

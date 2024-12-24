@@ -1,7 +1,12 @@
-import { getRandomValues, randomBytes } from "node:crypto";
+import { randomBytes, randomInt } from "node:crypto";
 
 export const randomStringGenerator = () =>
-  Promise.resolve(getRandomValues(randomBytes(32)).toString());
+  Promise.resolve(randomBytes(32).toString("hex"));
 
 export const otpGenerator = async (): Promise<string> =>
-  Promise.resolve((await randomStringGenerator()).slice(0, 4));
+  Promise.resolve(
+    `${randomInt(0, 9)}${randomInt(0, 9)}${randomInt(0, 9)}${randomInt(
+      0,
+      9
+    )}`.toString()
+  );

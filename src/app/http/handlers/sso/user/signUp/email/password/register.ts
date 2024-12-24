@@ -1,5 +1,5 @@
-import { SsoService } from "../../../../../../../../services/sso/internal/sso";
-import { Handler, ServerSchema } from "../../../../../../server";
+import { ServerSchema, Handler } from "src/app/http/server";
+import { SsoService } from "src/services/sso/internal/sso";
 
 export const schema = {
   body: {

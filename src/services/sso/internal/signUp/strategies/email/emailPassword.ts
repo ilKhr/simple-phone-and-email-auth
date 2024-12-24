@@ -1,6 +1,14 @@
-import { Otp, OtpWithId } from "../../../entities/otp";
-import { User, UserWithId } from "../../../entities/user";
-import { EmailMessage } from "../../../sso";
+import { EmailMessage } from "src/services/messageProvider/messageProvider";
+import {
+  OtpWithId,
+  Otp,
+  OtpCreate,
+} from "src/services/sso/internal/entities/otp";
+import {
+  UserWithId,
+  User,
+  UserCreate,
+} from "src/services/sso/internal/entities/user";
 
 // TODO: add normal time functions
 const getExpiresAt = () => new Date(new Date().getTime() + 5 * 60000);
@@ -13,12 +21,13 @@ export interface OtpProvider {
 }
 
 export interface Logger {
+  info: (msg: string) => void;
   error: (msg: string) => void;
   with: (msg: string) => Logger;
 }
 
 export interface UserProvider {
-  byId: (id: string) => Promise<UserWithId | null>;
+  byId: (id: number) => Promise<UserWithId | null>;
   byEmail: (email: string) => Promise<UserWithId | null>;
 }
 
@@ -35,7 +44,7 @@ export interface ProviderMessageText {
 }
 
 export interface OtpRemover {
-  byId: (id: string) => Promise<boolean>;
+  byId: (id: number) => Promise<boolean>;
 }
 
 export interface OtpSaver {
@@ -51,7 +60,7 @@ export interface UserSaver {
 }
 
 export interface SessionCreator {
-  create: (userId: string, idAddress: string) => Promise<string>;
+  create: (userId: number, idAddress: string) => Promise<string>;
 }
 
 export const ErrorMessages = {
@@ -132,7 +141,7 @@ export class EmailPasswordSignUpStrategies {
       throw new Error(ErrorMessages.ThisEmailAlreadyUsed);
     }
 
-    const localUser = new User({
+    const localUser = UserCreate({
       phone: null,
       id: null,
       passwordHash: await this.hasher.hash(credentials.password),
@@ -174,6 +183,8 @@ export class EmailPasswordSignUpStrategies {
 
     const code = await this.otpGenerator.generate();
 
+    logger.info(code);
+
     const message = this.providerMessageTexter.messageText({
       to: credentials.email,
       code,
@@ -187,13 +198,12 @@ export class EmailPasswordSignUpStrategies {
       throw new Error(ErrorMessages.MessageWasNotSend);
     }
 
-    const otp = new Otp({
+    const otp = OtpCreate({
       id: null,
       otp: code,
       destination: credentials.email,
       expiresAt: getExpiresAt(),
       userId: null,
-      l: this.logger,
     });
 
     if (existedOtp) {

@@ -1,2 +1,2 @@
-export * as otp from "./otp";
-export * as password from "./otp";
+export * as otp from "src/app/http/handlers/sso/user/signIn/phone/otp";
+export * as password from "src/app/http/handlers/sso/user/signIn/phone/password";

@@ -1,6 +1,6 @@
-import { SsoService } from "../../../services/sso/internal/sso";
-import * as sso from "../handlers/sso";
-import { ENDPOINTS } from "./endpoints";
+import { ENDPOINTS } from "src/app/http/routes/endpoints";
+import { SsoService } from "src/services/sso/internal/sso";
+import * as sso from "src/app/http/handlers/sso";
 
 export type RouterType = Record<
   ENDPOINTS,

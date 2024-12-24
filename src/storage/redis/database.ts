@@ -28,7 +28,7 @@ export class RedisConnection {
 
   private constructor(url: string, l: Logger) {
     this.url = url;
-    this.logger = l.with(this.op);
+    this.logger = l.with(`op: ${this.op}`);
   }
 
   public static async getInstance(

@@ -4,6 +4,8 @@ import Fastify, {
   RawServerBase,
   RawServerDefault,
   RouteHandlerMethod,
+  FastifyBaseLogger,
+  FastifyInstance,
 } from "fastify";
 
 import fastifyCookie from "@fastify/cookie";
@@ -11,8 +13,8 @@ import fastifySwagger from "@fastify/swagger";
 import fastifySwaggerUI from "@fastify/swagger-ui";
 import { FastifySchema } from "fastify/types/schema";
 import { FromSchema, JSONSchema } from "json-schema-to-ts";
-import { SsoService } from "../../services/sso/internal/sso";
-import { HttpRouter } from "./routes/router";
+import { SsoService } from "src/services/sso/internal/sso";
+import { HttpRouter } from "src/app/http/routes/router";
 
 export type ServerSchema = Omit<FastifySchema, "response"> & {
   response: {
@@ -44,65 +46,79 @@ type Config = {
   cookieSecret: string;
 };
 
-export const Server = async (config: Config, ssoService: SsoService) => {
+interface GeneralParams {
+  logger: FastifyBaseLogger;
+  config: Config;
+  ssoService: SsoService;
+}
+
+const registerPlugin = async (
+  server: ReturnType<typeof Fastify>,
+  config: Config
+) => {
+  await server.register(fastifyCookie, {
+    secret: config.cookieSecret,
+  });
+
+  await server.register(fastifySwagger, {
+    mode: "dynamic",
+    openapi: {
+      info: {
+        title: "My API",
+        description: "API documentation",
+        version: "1.0.0",
+      },
+      openapi: "3.1.0",
+    },
+  });
+
+  await server.register(fastifySwaggerUI, {
+    routePrefix: "/swagger",
+  });
+};
+
+const registerRouter = (
+  server: ReturnType<typeof Fastify>,
+  ssoService: SsoService
+) => {
+  const router = HttpRouter(ssoService);
+  Object.entries(router).forEach(([endpoint, methods]) => {
+    Object.entries(methods).forEach(([method, handler]) => {
+      server.route({
+        handler: handler.handler,
+        method,
+        schema: handler.schema,
+        url: endpoint,
+      });
+    });
+  });
+};
+
+const run = (
+  server: FastifyInstance,
+  port: number,
+  cb: (err: Error | null, address: string) => void
+) => {
+  server.listen({ port }, cb);
+};
+
+const stop = (server: FastifyInstance, cb: () => void) => {
+  server.close(cb);
+};
+
+export const Server = async (gp: GeneralParams) => {
   const server = Fastify({
-    logger: true,
+    logger: false,
+    loggerInstance: gp.logger,
     ajv: { customOptions: { coerceTypes: "array" } },
   });
 
-  const registerPlugin = async () => {
-    await server.register(fastifyCookie, {
-      secret: config.cookieSecret,
-    });
-
-    await server.register(fastifySwagger, {
-      mode: "dynamic",
-      openapi: {
-        info: {
-          title: "My API",
-          description: "API documentation",
-          version: "1.0.0",
-        },
-        openapi: "3.1.0",
-      },
-    });
-
-    await server.register(fastifySwaggerUI, {
-      routePrefix: "/swagger",
-    });
-  };
-
-  const registerRouter = () => {
-    const router = HttpRouter(ssoService);
-    Object.entries(router).forEach(([ednpoint, methods]) => {
-      Object.entries(methods).forEach(([m, sh]) => {
-        server.route({
-          handler: sh.handler,
-          method: m,
-          schema: sh.schema,
-          url: ednpoint,
-        });
-      });
-    });
-  };
-
-  await registerPlugin();
-
-  registerRouter();
-
-  const run = (
-    port: number,
-    cb: (err: Error | null, address: string) => void
-  ) => {
-    server.listen({ port }, cb);
-  };
-
-  const stop = (cb: () => void) => {
-    server.close(cb);
-  };
+  await registerPlugin(server, gp.config);
+  registerRouter(server, gp.ssoService);
 
   return {
-    run,
-    stop,
+    run: (port: number, cb: (err: Error | null, address: string) => void) =>
+      run(server, port, cb),
+    stop: (cb: () => void) => stop(server, cb),
   };
 };

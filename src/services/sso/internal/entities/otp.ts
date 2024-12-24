@@ -1,81 +1,60 @@
-import { IdRequired } from "../../../../utils/types";
+import { IdRequired } from "src/utils/types";
 
-const logSeparator = ";";
-
-const ErrorMessages = {
-  DestinationAvalibleOnlyForUnregister:
-    "Destination can use only unregister otp users",
+export type OtpParams = {
+  id: number | null;
+  otp: string;
+  userId: number | null;
+  expiresAt: Date;
+  destination: string; // use only for unregister users
 };
 
+type OtpStruct = {
+  id: number | null;
+  otp: string;
+  userId: number | null;
+  expiresAt: Date;
+  destination: string;
+};
+
+const setId = (otp: OtpStruct, newId: number) => {
+  otp.id = newId;
+};
+
+const getId = (otp: OtpStruct) => otp.id;
+
+const getOtp = (otp: OtpStruct) => otp.otp;
+
+const getUserId = (otp: OtpStruct) => otp.userId;
+
+const getExpiresAt = (otp: OtpStruct) => otp.expiresAt;
+
+const checkIsExpires = (otp: OtpStruct) => otp.expiresAt < new Date();
+
+/**
+ * @description
+ * Use this method only when userId is null
+ */
+const getDestination = (otp: OtpStruct) => otp.destination;
+
+export const OtpCreate = (params: OtpParams) => {
+  const otp: OtpStruct = {
+    id: params.id,
+    otp: params.otp,
+    userId: params.userId,
+    expiresAt: params.expiresAt,
+    destination: params.destination,
+  };
+
+  return {
+    setId: (newId: number) => setId(otp, newId),
+    getId: () => getId(otp),
+    getOtp: () => getOtp(otp),
+    getUserId: () => getUserId(otp),
+    getExpiresAt: () => getExpiresAt(otp),
+    checkIsExpires: () => checkIsExpires(otp),
+    getDestination: () => getDestination(otp),
+  };
+};
+
+export type Otp = ReturnType<typeof OtpCreate>;
 export type OtpWithId = IdRequired<Otp>;
-
-interface Logger {
-  error: (msg: string) => void;
-  with: (msg: string) => Logger;
-}
-
-export class Otp {
-  private id: string | null = null;
-  private userId: string | null;
-  private otp: string;
-  private destination: string;
-  private expiresAt: Date;
-
-  private logger: Logger;
-  private op = "email.emailService";
-
-  constructor(params: {
-    id: string | null;
-    otp: string;
-    userId: string | null;
-    expiresAt: Date;
-    destination: string; // use only for unregister users
-
-    l: Logger;
-  }) {
-    this.otp = params.otp;
-    this.userId = params.userId;
-    this.expiresAt = params.expiresAt;
-    this.destination = params.destination;
-
-    this.logger = params.l.with(`op: ${this.op}`);
-  }
-
-  setId = (id: string) => {
-    this.id = id;
-  };
-
-  getId = () => {
-    return this.id;
-  };
-
-  getOtp = () => {
-    return this.otp;
-  };
-
-  getUserId = () => {
-    return this.userId;
-  };
-
-  getExpiresAt = () => {
-    return this.expiresAt;
-  };
-
-  checkIsExpires = () => {
-    return this.expiresAt < new Date();
-  };
-
-  getDestination = () => {
-    const op = `.fromUs${logSeparator}`;
-    const logger = this.logger.with(`${op}`);
-
-    if (this.userId) {
-      logger.error(
-        `err: ${ErrorMessages.DestinationAvalibleOnlyForUnregister}`
-      );
-
-      throw new Error(ErrorMessages.DestinationAvalibleOnlyForUnregister);
-    }
-    return this.destination;
-  };
-}
