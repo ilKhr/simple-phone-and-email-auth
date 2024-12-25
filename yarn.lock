@@ -3764,6 +3764,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"phone@npm:^3.1.56":
+  version: 3.1.56
+  resolution: "phone@npm:3.1.56"
+  checksum: 10c0/dd1403aea8c5b0e80f1356cf631ab9deb3172bda79c53f7648107460e77539fd10591d13e9fbbe493861327ecb2f3da7ad50cd6aaf0d21089e4ef7ebad4a7164
+  languageName: node
+  linkType: hard
+
 "picocolors@npm:^1.1.1":
   version: 1.1.1
   resolution: "picocolors@npm:1.1.1"
@@ -4427,6 +4434,7 @@ __metadata:
     fastify: "npm:^5.2.0"
     json-schema-to-ts: "npm:^3.1.1"
     nodemailer: "npm:^6.9.16"
+    phone: "npm:^3.1.56"
     pino: "npm:^9.5.0"
     pino-pretty: "npm:^13.0.0"
     redis: "npm:^4.7.0"

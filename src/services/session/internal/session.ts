@@ -1,4 +1,7 @@
-import { Session } from "src/services/session/internal/entities/session";
+import {
+  Session,
+  SessionCreate,
+} from "src/services/session/internal/entities/session";
 import { IdRequired } from "src/utils/types";
 
 const getExpiresAt = () => new Date(new Date().getTime() + 5 * 60000);

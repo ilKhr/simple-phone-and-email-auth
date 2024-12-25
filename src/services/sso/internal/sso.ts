@@ -46,15 +46,15 @@ interface EmailPasswordStrategy {
 //   verify: (credentials: { phone: string }) => Promise<boolean>;
 // }
 
-// interface PhonePasswordSignUpStrategy {
-//   register: (credentials: {
-//     phone: string;
-//     password: string;
-//     code: string;
-//   }) => Promise<Token>;
+interface PhonePasswordSignUpStrategy {
+  register: (credentials: {
+    phone: string;
+    password: string;
+    code: string;
+  }) => Promise<Token>;
 
-//   verify: (credentials: { phone: string }) => Promise<boolean>;
-// }
+  verify: (credentials: { phone: string }) => Promise<boolean>;
+}
 
 interface EmailPasswordSignUpStrategy {
   register: (credentials: {
@@ -78,7 +78,7 @@ export const ErrorMessages = {
 type ActionToStrategies = {
   signUp: {
     EmailPasswordSignUpStrategy: EmailPasswordSignUpStrategy;
-    // PhonePasswordSignUpStrategy: PhonePasswordSignUpStrategy;
+    PhonePasswordSignUpStrategy: PhonePasswordSignUpStrategy;
   };
 
   signIn: {

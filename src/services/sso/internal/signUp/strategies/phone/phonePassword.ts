@@ -1,3 +1,4 @@
+import { PhoneMessage } from "src/services/messageProvider/messageProvider";
 import {
   OtpWithId,
   Otp,
@@ -30,15 +31,15 @@ export interface UserProvider {
 }
 
 export interface Sender {
-  send: (phone: string, message: string) => Promise<boolean>;
+  send: (message: PhoneMessage) => Promise<boolean>;
 }
 
-export interface CodeGenerator {
+export interface otpGenerator {
   generate: () => Promise<string>;
 }
 
 export interface ProviderMessageText {
-  messageText: (code: string) => string;
+  messageText: (params: { to: string; code: string }) => PhoneMessage;
 }
 
 export interface OtpRemover {
@@ -89,7 +90,7 @@ export class PhonePasswordSignUpStrategies {
     private logger: Logger,
     private userProvider: UserProvider,
     private sender: Sender,
-    private codeGenerator: CodeGenerator,
+    private otpGenerator: otpGenerator,
     private providerMessageTexter: ProviderMessageText,
     private otpRemover: OtpRemover,
     private otpSaver: OtpSaver,
@@ -175,8 +176,6 @@ export class PhonePasswordSignUpStrategies {
 
   // send otp to phone
   async verify(credentials: { phone: string }): Promise<boolean> {
-    // проверить, есть ли этот телефон в OTP
-    // отправить сообщение
     const op = `.verify${logSeparator}`;
     const logger = this.logger.with(`${op}`);
 
@@ -196,11 +195,14 @@ export class PhonePasswordSignUpStrategies {
       throw new Error(ErrorMessages.OtpAlreadyUsedTryLater);
     }
 
-    const code = await this.codeGenerator.generate();
+    const code = await this.otpGenerator.generate();
 
-    const message = this.providerMessageTexter.messageText(code);
+    const message = this.providerMessageTexter.messageText({
+      to: credentials.phone,
+      code,
+    });
 
-    const isSent = await this.sender.send(credentials.phone, message);
+    const isSent = await this.sender.send(message);
 
     if (!isSent) {
       logger.error(`err: ${ErrorMessages.MessageWasNotSend}`);

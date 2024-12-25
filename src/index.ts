@@ -21,6 +21,10 @@ import { SQLiteConnection } from "src/storage/sqlite3/database";
 import { SqliteOtpRepository } from "src/storage/sqlite3/otp";
 import { SqliteUserRepository } from "src/storage/sqlite3/user";
 import { randomStringGenerator, otpGenerator } from "src/utils/gererators";
+import { SmsRu } from "src/services/phone/integrations/smsru";
+import { PhoneService } from "src/services/phone/phone";
+import { PhonePasswordSignUpStrategies } from "src/services/sso/internal/signUp/strategies/phone/phonePassword";
+import { PhoneCountyProvidersResolver } from "src/services/phone/resolver";
 
 (async () => {
   const mode = "local";
@@ -69,7 +73,17 @@ import { randomStringGenerator, otpGenerator } from "src/utils/gererators";
   const passwordService = PasswordService({ hasher: bcrypt });
 
   const emailSender = Nodemailer({ nmParams: config.config.services.email });
+  const phoneResolver = PhoneCountyProvidersResolver({
+    providers: {
+      RU: SmsRu({
+        smsRuParams: config.config.services.phone,
+        logger,
+      }),
+    },
+  });
+
   const emailSendService = new EmailService(emailSender, logger);
+  const phoneSendService = new PhoneService(phoneResolver, logger);
 
   const sessionService = new SessionService(
     sessionRepository,
@@ -99,6 +113,25 @@ import { randomStringGenerator, otpGenerator } from "src/utils/gererators";
         },
         {
           messageText: messageProvider.getMessage("verify", "email"),
+        },
+        {
+          byId: otpRepository.deleteById,
+        },
+        otpRepository,
+        passwordService,
+        userRepository,
+        sessionService
+      ),
+      PhonePasswordSignUpStrategy: new PhonePasswordSignUpStrategies(
+        otpRepository,
+        logger,
+        userRepository,
+        phoneSendService,
+        {
+          generate: otpGenerator,
+        },
+        {
+          messageText: messageProvider.getMessage("verify", "phone"),
         },
         {
           byId: otpRepository.deleteById,

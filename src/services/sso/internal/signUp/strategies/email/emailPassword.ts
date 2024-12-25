@@ -183,8 +183,6 @@ export class EmailPasswordSignUpStrategies {
 
     const code = await this.otpGenerator.generate();
 
-    logger.info(code);
-
     const message = this.providerMessageTexter.messageText({
       to: credentials.email,
       code,

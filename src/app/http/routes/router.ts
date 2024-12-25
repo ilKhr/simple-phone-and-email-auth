@@ -22,4 +22,10 @@ export const HttpRouter = (ssoService: SsoService): RouterType => ({
   [ENDPOINTS.userSignUpEmailPasswordVerify]: {
     POST: sso.user.signUp.email.password.verify.handlerFactory(ssoService),
   },
+  [ENDPOINTS.userSignUpPhonePasswordRegister]: {
+    POST: sso.user.signUp.phone.password.register.handlerFactory(ssoService),
+  },
+  [ENDPOINTS.userSignUpPhonePasswordVerify]: {
+    POST: sso.user.signUp.phone.password.verify.handlerFactory(ssoService),
+  },
 });
