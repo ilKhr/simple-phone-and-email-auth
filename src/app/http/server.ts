@@ -1,29 +1,32 @@
 import Fastify, {
+  FastifyBaseLogger,
+  FastifyInstance,
   RawReplyDefaultExpression,
   RawRequestDefaultExpression,
   RawServerBase,
   RawServerDefault,
   RouteHandlerMethod,
-  FastifyBaseLogger,
-  FastifyInstance,
 } from "fastify";
 
 import fastifyCookie from "@fastify/cookie";
+import fastifyMiddie from "@fastify/middie";
 import fastifySwagger from "@fastify/swagger";
 import fastifySwaggerUI from "@fastify/swagger-ui";
 import { FastifySchema } from "fastify/types/schema";
 import { FromSchema, JSONSchema } from "json-schema-to-ts";
-import { SsoService } from "src/services/sso/internal/sso";
 import { HttpRouter } from "src/app/http/routes/router";
+import { SsoService } from "src/services/sso/internal/sso";
+import { OidcProviderCreate } from "src/app/http/oidc/oidc";
 
 export type ServerSchema = Omit<FastifySchema, "response"> & {
   response: {
-    200: JSONSchema;
+    200?: JSONSchema;
+    302?: JSONSchema;
     400?: JSONSchema;
   };
 };
 
-type Reply<S> = S extends { 200: infer R } ? R : never;
+type Reply<S> = S extends { 200?: infer R } ? R : never;
 
 export type Handler<S extends ServerSchema> = RouteHandlerMethod<
   RawServerBase,
@@ -50,6 +53,7 @@ interface GeneralParams {
   logger: FastifyBaseLogger;
   config: Config;
   ssoService: SsoService;
+  oidcPort: number;
 }
 
 const registerPlugin = async (
@@ -75,6 +79,8 @@ const registerPlugin = async (
   await server.register(fastifySwaggerUI, {
     routePrefix: "/swagger",
   });
+
+  await server.register(fastifyMiddie);
 };
 
 const registerRouter = (
@@ -94,6 +100,11 @@ const registerRouter = (
   });
 };
 
+const registerOidc = async (server: FastifyInstance, port: number) => {
+  const oidc = await OidcProviderCreate(`http://localhost:${port}`);
+  server.use("/oidc", oidc.callback());
+};
+
 const run = (
   server: FastifyInstance,
   port: number,
@@ -106,7 +117,7 @@ const stop = (server: FastifyInstance, cb: () => void) => {
   server.close(cb);
 };
 
-export const Server = async (gp: GeneralParams) => {
+export const ServerCreate = async (gp: GeneralParams) => {
   const server = Fastify({
     logger: false,
     loggerInstance: gp.logger,
@@ -115,6 +126,7 @@ export const Server = async (gp: GeneralParams) => {
 
   await registerPlugin(server, gp.config);
   registerRouter(server, gp.ssoService);
+  await registerOidc(server, gp.oidcPort);
 
   return {
     run: (port: number, cb: (err: Error | null, address: string) => void) =>

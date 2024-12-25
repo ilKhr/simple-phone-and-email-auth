@@ -88,6 +88,7 @@ type ActionToStrategies = {
     // PhonePasswordStategy: PhonePasswordStrategy;
   };
 };
+
 export class SsoService {
   private op = "sso.ssoService";
 

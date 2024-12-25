@@ -4,7 +4,7 @@ import { version } from "package.json";
 
 import * as configs from "src/config/";
 
-import { Server } from "src/app/http/server";
+import { ServerCreate } from "src/app/http/server";
 import { PinoAdapter } from "src/adapters/pino";
 import { EmailService } from "src/services/email/email";
 import { Nodemailer } from "src/services/email/integrations/nodemailer";
@@ -20,7 +20,11 @@ import { RedisSessionRepository } from "src/storage/redis/session";
 import { SQLiteConnection } from "src/storage/sqlite3/database";
 import { SqliteOtpRepository } from "src/storage/sqlite3/otp";
 import { SqliteUserRepository } from "src/storage/sqlite3/user";
-import { randomStringGenerator, otpGenerator } from "src/utils/gererators";
+import {
+  randomStringGenerator,
+  otpGenerator,
+  getExpiresAtDefault,
+} from "src/utils/gererators";
 
 (async () => {
   const mode = "local";
@@ -71,13 +75,14 @@ import { randomStringGenerator, otpGenerator } from "src/utils/gererators";
   const emailSender = Nodemailer({ nmParams: config.config.services.email });
   const emailSendService = new EmailService(emailSender, logger);
 
-  const sessionService = new SessionService(
-    sessionRepository,
-    {
+  const sessionService = SessionService({
+    timeExpires: { getExpiresAt: getExpiresAtDefault },
+    logger,
+    sessionCreator: sessionRepository,
+    sessionRemover: {
       byId: sessionRepository.deleteById,
     },
-    logger
-  );
+  });
 
   const ssoService = new SsoService(
     {
@@ -112,10 +117,11 @@ import { randomStringGenerator, otpGenerator } from "src/utils/gererators";
     logger
   );
 
-  const server = await Server({
+  const server = await ServerCreate({
     logger: pinoLogger,
     config: config.config.services.sso.http,
     ssoService,
+    oidcPort: 3000,
   });
 
   server.run(3000, (err, port) => {

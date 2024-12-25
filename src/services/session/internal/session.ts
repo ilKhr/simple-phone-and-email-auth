@@ -1,80 +1,63 @@
-import { Session } from "src/services/session/internal/entities/session";
 import { IdRequired } from "src/utils/types";
+import {
+  Session,
+  SessionCreate,
+} from "src/services/session/internal/entities/session";
 
-const getExpiresAt = () => new Date(new Date().getTime() + 5 * 60000);
-
-export interface SessionSaver {
-  save: (
-    session: Session
-    // TODO: make generic for do it automaticly and replace everythere
-  ) => Promise<IdRequired<Session>>;
-}
-
-export interface SessionRemover {
-  byId: (id: string) => Promise<boolean>;
-}
-
-export interface Logger {
+export type Logger = {
   error: (msg: string) => void;
   with: (msg: string) => Logger;
-}
-
-const ErrorMessages = {
-  SessionIdNotProvided: "Session ID not provided",
-  UserIdNotProvided: "User ID not provided",
-  IpAddressNotProvided: "IP address not provided",
-  SessionNotRemoved: "Session could not be removed",
 };
 
-export class SessionService {
-  private op = "session.service";
+export type SessionSaver = {
+  save: (session: Session) => Promise<IdRequired<Session>>;
+};
 
-  constructor(
-    private sessionCreator: SessionSaver,
-    private sessionRemover: SessionRemover,
-    private logger: Logger
-  ) {
-    this.logger = logger.with(`op: ${this.op}`);
-  }
+export type SessionRemover = {
+  byId: (id: string) => Promise<boolean>;
+};
 
-  public async create(userId: number, ipAddress: string): Promise<string> {
-    const op = `.create`;
-    const logger = this.logger.with(`${op}`);
+export type TimerExpires = {
+  getExpiresAt: () => Date;
+};
 
-    if (!userId) {
-      logger.error(`err: ${ErrorMessages.UserIdNotProvided}`);
-      throw new Error(ErrorMessages.UserIdNotProvided);
-    }
+type SessionServiceParams = {
+  logger: Logger;
+  sessionCreator: SessionSaver;
+  sessionRemover: SessionRemover;
+  timeExpires: TimerExpires;
+};
 
-    if (!ipAddress) {
-      logger.error(`err: ${ErrorMessages.IpAddressNotProvided}`);
-      throw new Error(ErrorMessages.IpAddressNotProvided);
-    }
+const create = async (
+  params: SessionServiceParams,
+  userId: number,
+  ipAddress: string
+): Promise<string> => {
+  const session = await params.sessionCreator.save(
+    SessionCreate({
+      expiresAt: params.timeExpires.getExpiresAt(),
+      id: null,
+      ipAddress,
+      userId,
+    })
+  );
 
-    const session = await this.sessionCreator.save(
-      /* TODO: replace getExpireAt */
-      SessionCreate({ expiresAt: getExpiresAt(), id: null, ipAddress, userId })
-    );
+  return session.getId();
+};
 
-    return session.getId();
-  }
+const remove = async (
+  params: SessionServiceParams,
+  id: string
+): Promise<boolean> => {
+  const isRemoved = await params.sessionRemover.byId(id);
 
-  public async remove(id: string): Promise<boolean> {
-    const op = `.remove`;
-    const logger = this.logger.with(`${op}`);
+  return isRemoved;
+};
 
-    if (!id) {
-      logger.error(`err: ${ErrorMessages.SessionIdNotProvided}`);
-      throw new Error(ErrorMessages.SessionIdNotProvided);
-    }
-
-    const isRemoved = await this.sessionRemover.byId(id);
-
-    if (!isRemoved) {
-      logger.error(`err: ${ErrorMessages.SessionNotRemoved}`);
-      throw new Error(ErrorMessages.SessionNotRemoved);
-    }
-
-    return isRemoved;
-  }
-}
+export const SessionService = (params: SessionServiceParams) => {
+  return {
+    create: (userId: number, ipAddress: string) =>
+      create(params, userId, ipAddress),
+    remove: (id: string) => remove(params, id),
+  };
+};

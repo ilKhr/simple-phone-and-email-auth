@@ -10,3 +10,7 @@ export const otpGenerator = async (): Promise<string> =>
       9
     )}`.toString()
   );
+
+// 5 minute
+export const getExpiresAtDefault = () =>
+  new Date(new Date().getTime() + 5 * 60000);
