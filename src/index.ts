@@ -20,11 +20,12 @@ import { RedisSessionRepository } from "src/storage/redis/session";
 import { SQLiteConnection } from "src/storage/sqlite3/database";
 import { SqliteOtpRepository } from "src/storage/sqlite3/otp";
 import { SqliteUserRepository } from "src/storage/sqlite3/user";
-import { randomStringGenerator, otpGenerator } from "src/utils/gererators";
+import { randomStringGenerator, otpGenerator } from "src/utils/generators";
 import { SmsRu } from "src/services/phone/integrations/smsru";
 import { PhoneService } from "src/services/phone/phone";
 import { PhonePasswordSignUpStrategies } from "src/services/sso/internal/signUp/strategies/phone/phonePassword";
 import { PhoneCountyProvidersResolver } from "src/services/phone/resolver";
+import { JwtAdapter } from "src/adapters/jwt";
 
 (async () => {
   const mode = "local";
@@ -70,6 +71,7 @@ import { PhoneCountyProvidersResolver } from "src/services/phone/resolver";
     templateProvider: localMessageStrategy,
   });
 
+  const jwt = JwtAdapter(config.config.services.sso.jwt);
   const passwordService = PasswordService({ hasher: bcrypt });
 
   const emailSender = Nodemailer({ nmParams: config.config.services.email });
@@ -82,7 +84,7 @@ import { PhoneCountyProvidersResolver } from "src/services/phone/resolver";
     },
   });
 
-  const emailSendService = new EmailService(emailSender, logger);
+  const emailSendService = EmailService({ emailSender, logger });
   const phoneSendService = new PhoneService(phoneResolver, logger);
 
   const sessionService = new SessionService(
@@ -95,10 +97,11 @@ import { PhoneCountyProvidersResolver } from "src/services/phone/resolver";
 
   const ssoService = new SsoService(
     {
-      EmailPasswordStategy: new EmailPassword(
+      EmailPasswordSignInStrategy: new EmailPassword(
         userRepository,
         passwordService,
-        sessionService,
+        { save: sessionService.create },
+        jwt,
         logger
       ),
     },
@@ -112,7 +115,7 @@ import { PhoneCountyProvidersResolver } from "src/services/phone/resolver";
           generate: otpGenerator,
         },
         {
-          messageText: messageProvider.getMessage("verify", "email"),
+          messageText: messageProvider.getTemplate("verify", "email"),
         },
         {
           byId: otpRepository.deleteById,
@@ -120,7 +123,8 @@ import { PhoneCountyProvidersResolver } from "src/services/phone/resolver";
         otpRepository,
         passwordService,
         userRepository,
-        sessionService
+        { save: sessionService.create },
+        jwt
       ),
       PhonePasswordSignUpStrategy: new PhonePasswordSignUpStrategies(
         otpRepository,
@@ -131,7 +135,7 @@ import { PhoneCountyProvidersResolver } from "src/services/phone/resolver";
           generate: otpGenerator,
         },
         {
-          messageText: messageProvider.getMessage("verify", "phone"),
+          messageText: messageProvider.getTemplate("verify", "phone"),
         },
         {
           byId: otpRepository.deleteById,
@@ -139,7 +143,8 @@ import { PhoneCountyProvidersResolver } from "src/services/phone/resolver";
         otpRepository,
         passwordService,
         userRepository,
-        sessionService
+        { save: sessionService.create },
+        jwt
       ),
     },
     logger

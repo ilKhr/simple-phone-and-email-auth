@@ -1,74 +1,25 @@
 import { PhoneMessage } from "src/services/messageProvider/messageProvider";
+import { OtpCreate } from "src/services/sso/internal/entities/otp";
+import { UserCreate } from "src/services/sso/internal/entities/user";
+import { PhonePasswordSignUpStrategy } from "src/services/sso/internal/sso";
 import {
-  OtpWithId,
-  Otp,
-  OtpCreate,
-} from "src/services/sso/internal/entities/otp";
-import {
-  UserWithId,
-  User,
-  UserCreate,
-} from "src/services/sso/internal/entities/user";
+  AuthenticateResult,
+  Hasher,
+  JwtCreator,
+  Logger,
+  OtpGenerator,
+  OtpProvider,
+  OtpRemover,
+  OtpSaver,
+  SessionSaver,
+  UserProvider,
+  UserSaver,
+} from "src/services/sso/internal/types";
 
 // TODO: add normal time functions
 const getExpiresAt = () => new Date(new Date().getTime() + 5 * 60000);
 
 const logSeparator = ";";
-
-export interface otpProvider {
-  byOtp: (e: string) => Promise<OtpWithId | null>;
-  byDestination: (e: string) => Promise<Otp | null>;
-}
-
-export interface Logger {
-  error: (msg: string) => void;
-  with: (msg: string) => Logger;
-}
-
-export interface UserProvider {
-  byId: (id: number) => Promise<UserWithId | null>;
-  byPhone: (phone: string) => Promise<UserWithId | null>;
-}
-
-export interface Sender {
-  send: (message: PhoneMessage) => Promise<boolean>;
-}
-
-export interface otpGenerator {
-  generate: () => Promise<string>;
-}
-
-export interface ProviderMessageText {
-  messageText: (params: { to: string; code: string }) => PhoneMessage;
-}
-
-export interface OtpRemover {
-  byId: (id: number) => Promise<boolean>;
-}
-
-export interface OtpSaver {
-  save: (otp: Otp) => Promise<OtpWithId>;
-}
-
-export interface Hasher {
-  hash: (p: string) => Promise<string>;
-}
-
-export interface UserSaver {
-  save: (user: User) => Promise<UserWithId>;
-}
-
-export interface SessionCreator {
-  create: (userId: number, idAddress: string) => Promise<string>;
-}
-
-export interface TokenGenerator {
-  generate: (u: User) => Promise<string>;
-}
-
-export interface SessionCreator {
-  create: (userId: number, idAddress: string) => Promise<string>;
-}
 
 export const ErrorMessages = {
   OtpAlreadyUsedTryLater: "Otp already used. Try later",
@@ -82,31 +33,51 @@ export const ErrorMessages = {
   MessageWasNotSend: "Message was not send",
 };
 
-export class PhonePasswordSignUpStrategies {
+export interface Sender {
+  send: (message: PhoneMessage) => Promise<boolean>;
+}
+export interface ProviderMessageText {
+  messageText: (params: { to: string; code: string }) => PhoneMessage;
+}
+
+export class PhonePasswordSignUpStrategies
+  implements PhonePasswordSignUpStrategy
+{
   private op = "phone.signUp.stategies.phoneOtp";
 
   constructor(
-    private otpProvider: otpProvider,
+    private otpProvider: OtpProvider,
     private logger: Logger,
     private userProvider: UserProvider,
     private sender: Sender,
-    private otpGenerator: otpGenerator,
+    private otpGenerator: OtpGenerator,
     private providerMessageTexter: ProviderMessageText,
     private otpRemover: OtpRemover,
     private otpSaver: OtpSaver,
     private hasher: Hasher,
     private userSaver: UserSaver,
-    private sessionCreator: SessionCreator
+    private sessionSaver: SessionSaver,
+    private jwtCreator: JwtCreator
   ) {
     this.logger = logger.with(`op: ${this.op}`);
   }
 
   // check otp
-  async register(credentials: {
-    phone: string;
-    password: string;
-    code: string;
-  }): Promise<string> {
+  async register(params: {
+    info: {
+      firstName: string;
+      lastName: string | null;
+    };
+    credentials: {
+      phone: string;
+      password: string;
+      code: string;
+    };
+    device: {
+      ipAddress: string;
+    };
+  }): Promise<AuthenticateResult> {
+    const { credentials, device, info } = params;
     const op = `.register${logSeparator}`;
     const logger = this.logger.with(`${op}`);
 
@@ -159,6 +130,8 @@ export class PhonePasswordSignUpStrategies {
       id: null,
       passwordHash: await this.hasher.hash(credentials.password),
       phone: credentials.phone,
+      firstName: info.firstName,
+      lastName: info.lastName,
     });
 
     localUser.setIsVerifiedPhone();
@@ -168,14 +141,24 @@ export class PhonePasswordSignUpStrategies {
       this.otpRemover.byId(otpId),
     ]);
 
-    return this.sessionCreator.create(
-      user.getId(),
-      " " /* TODO: add IP address */
-    );
+    const uId = user.getId();
+
+    const jwt = this.jwtCreator.create({
+      userId: uId,
+      firstName: user.getFirstName(),
+      lastName: user.getLastName(),
+      email: user.getEmail(),
+      phone: user.getPhone(),
+    });
+
+    await this.sessionSaver.save(uId, jwt, device);
+
+    return { accessToken: jwt.access.value, refreshToken: jwt.refresh.value };
   }
 
   // send otp to phone
-  async verify(credentials: { phone: string }): Promise<boolean> {
+  async verify(params: { credentials: { phone: string } }): Promise<boolean> {
+    const { credentials } = params;
     const op = `.verify${logSeparator}`;
     const logger = this.logger.with(`${op}`);
 

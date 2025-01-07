@@ -1,4 +1,10 @@
 import { User } from "src/services/sso/internal/entities/user";
+import {
+  AuthenticateResult,
+  JwtCreator,
+  Logger,
+  SessionSaver,
+} from "src/services/sso/internal/types";
 
 const logSeparator = ";";
 
@@ -8,15 +14,6 @@ interface PasswordComparer {
 
 interface UserProvider {
   byPhone: (e: string) => Promise<User | null>;
-}
-
-export interface Logger {
-  error: (msg: string) => void;
-  with: (msg: string) => Logger;
-}
-
-export interface SessionCreator {
-  create: (userId: number, idAddress: string) => Promise<string>;
 }
 
 const ErrorMessages = {
@@ -32,18 +29,24 @@ export class PhonePassword {
   constructor(
     private userProvider: UserProvider,
     private passwordComparer: PasswordComparer,
-    private logger: Logger,
+    private sessionSaver: SessionSaver,
+    private jwtCreator: JwtCreator,
 
-    private sessionCreator: SessionCreator
+    private logger: Logger
   ) {
     this.logger = logger.with(`op: ${this.op}`);
   }
 
   // check valid phone and password
-  async authenticate(credentials: {
-    phone: string;
-    password: string;
-  }): Promise<string> {
+  async authenticate(
+    credentials: {
+      phone: string;
+      password: string;
+    },
+    device: {
+      ipAddress: string;
+    }
+  ): AuthenticateResult {
     const op = `.authenticate${logSeparator}`;
     const logger = this.logger.with(`${op}`);
 
@@ -81,7 +84,17 @@ export class PhonePassword {
       throw new Error(ErrorMessages.UserIdNotExists);
     }
 
-    return this.sessionCreator.create(uId, " " /* TODO: add IP address */);
+    const jwt = this.jwtCreator.create({
+      userId: uId,
+      firstName: user.getFirstName(),
+      lastName: user.getLastName(),
+      email: user.getEmail(),
+      phone: user.getPhone(),
+    });
+
+    await this.sessionSaver.save(uId, jwt, device);
+
+    return { accessToken: jwt.access.value, refreshToken: jwt.refresh.value };
   }
 
   // check user exists

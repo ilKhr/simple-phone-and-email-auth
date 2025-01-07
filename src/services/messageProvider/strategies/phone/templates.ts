@@ -1,12 +1,6 @@
-import {
-  MessageTypes,
-  MessageTypesParams,
-  PhoneMessage,
-} from "src/services/messageProvider/messageProvider";
+import { PhoneTemplates } from "src/services/messageProvider/strategies/local";
 
-export const phoneTemplates: {
-  [T in MessageTypes]: (params: MessageTypesParams[T]) => PhoneMessage;
-} = {
+export const phoneTemplates: PhoneTemplates = {
   otp: (params: { to: string; code: string }) => ({
     to: params.to,
     text: `Your OTP code is: ${params.code}`,

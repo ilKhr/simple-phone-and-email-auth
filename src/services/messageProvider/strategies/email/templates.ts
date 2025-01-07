@@ -1,12 +1,6 @@
-import {
-  MessageTypes,
-  MessageTypesParams,
-  EmailMessage,
-} from "src/services/messageProvider/messageProvider";
+import { EmailTemplates } from "src/services/messageProvider/strategies/local";
 
-export const emailTemplates: {
-  [T in MessageTypes]: (params: MessageTypesParams[T]) => EmailMessage;
-} = {
+export const emailTemplates: EmailTemplates = {
   otp: (params: { to: string; code: string }) => ({
     // TODO: change FROM
     from: "noreply@example.com",

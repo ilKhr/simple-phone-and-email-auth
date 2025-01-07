@@ -1,4 +1,10 @@
 import { UserWithId } from "src/services/sso/internal/entities/user";
+import { EmailPasswordSignInStrategy } from "src/services/sso/internal/sso";
+import {
+  AuthenticateResult,
+  JwtCreator,
+  SessionSaver,
+} from "src/services/sso/internal/types";
 
 const logSeparator = ";";
 
@@ -15,10 +21,6 @@ export interface Logger {
   with: (msg: string) => Logger;
 }
 
-export interface SessionCreator {
-  create: (userId: number, idAddress: string) => Promise<string>;
-}
-
 const ErrorMessages = {
   PasswordHashNotExists: "Password hash not exists",
   UserNotExists: "User not exists",
@@ -26,13 +28,14 @@ const ErrorMessages = {
   IncorrectLoginOrPassword: "Incorrect login or password",
 };
 
-export class EmailPassword {
+export class EmailPassword implements EmailPasswordSignInStrategy {
   private op = "email.stategies.emailPassword";
 
   constructor(
     private userProvider: UserProvider,
     private passwordComparer: PasswordComparer,
-    private sessionCreator: SessionCreator,
+    private sessionSaver: SessionSaver,
+    private jwtCreator: JwtCreator,
 
     private logger: Logger
   ) {
@@ -40,10 +43,16 @@ export class EmailPassword {
   }
 
   // check valid email and password
-  async authenticate(credentials: {
-    email: string;
-    password: string;
-  }): Promise<string> {
+  async authenticate(params: {
+    credentials: {
+      email: string;
+      password: string;
+    };
+    device: {
+      ipAddress: string;
+    };
+  }): AuthenticateResult {
+    const { credentials, device } = params;
     const op = `.authenticate${logSeparator}`;
     const logger = this.logger.with(`${op}`);
 
@@ -81,11 +90,22 @@ export class EmailPassword {
       throw new Error(ErrorMessages.UserIdNotExists);
     }
 
-    return this.sessionCreator.create(uId, " " /* TODO: add IP address */);
+    const jwt = this.jwtCreator.create({
+      userId: uId,
+      firstName: user.getFirstName(),
+      lastName: user.getLastName(),
+      email: user.getEmail(),
+      phone: user.getPhone(),
+    });
+
+    await this.sessionSaver.save(uId, jwt, device);
+
+    return { accessToken: jwt.access.value, refreshToken: jwt.refresh.value };
   }
 
   // check user exists
-  async verify(credentials: { email: string }): Promise<boolean> {
+  async verify(params: { credentials: { email: string } }): Promise<boolean> {
+    const { credentials } = params;
     const op = `.verify${logSeparator}`;
     const logger = this.logger.with(`${op}`);
 

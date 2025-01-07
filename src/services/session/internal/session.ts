@@ -1,16 +1,12 @@
 import {
   Session,
   SessionCreate,
+  SessionParamsJwt,
+  SessionWithId,
 } from "src/services/session/internal/entities/session";
-import { IdRequired } from "src/utils/types";
-
-const getExpiresAt = () => new Date(new Date().getTime() + 5 * 60000);
 
 export interface SessionSaver {
-  save: (
-    session: Session
-    // TODO: make generic for do it automaticly and replace everythere
-  ) => Promise<IdRequired<Session>>;
+  save: (session: Session) => Promise<SessionWithId>;
 }
 
 export interface SessionRemover {
@@ -33,14 +29,20 @@ export class SessionService {
   private op = "session.service";
 
   constructor(
-    private sessionCreator: SessionSaver,
+    private sessionSaver: SessionSaver,
     private sessionRemover: SessionRemover,
     private logger: Logger
   ) {
     this.logger = logger.with(`op: ${this.op}`);
   }
 
-  public async create(userId: number, ipAddress: string): Promise<string> {
+  public async create(
+    userId: number,
+    jwt: SessionParamsJwt,
+    device: {
+      ipAddress: string;
+    }
+  ): Promise<string> {
     const op = `.create`;
     const logger = this.logger.with(`${op}`);
 
@@ -49,14 +51,19 @@ export class SessionService {
       throw new Error(ErrorMessages.UserIdNotProvided);
     }
 
-    if (!ipAddress) {
+    if (!device.ipAddress) {
       logger.error(`err: ${ErrorMessages.IpAddressNotProvided}`);
       throw new Error(ErrorMessages.IpAddressNotProvided);
     }
 
-    const session = await this.sessionCreator.save(
-      /* TODO: replace getExpireAt */
-      SessionCreate({ expiresAt: getExpiresAt(), id: null, ipAddress, userId })
+    const session = await this.sessionSaver.save(
+      SessionCreate({
+        id: null,
+        device,
+        userId,
+        jwt,
+        createdAt: new Date(),
+      })
     );
 
     return session.getId();

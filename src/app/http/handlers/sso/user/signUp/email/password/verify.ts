@@ -45,7 +45,9 @@ export const handlerFactory = (
 } => ({
   handler: async (request) => {
     await ssoService.preRegister("EmailPasswordSignUpStrategy", {
-      email: request.body.email,
+      credentials: {
+        email: request.body.email,
+      },
     });
 
     return { status: "ok" };

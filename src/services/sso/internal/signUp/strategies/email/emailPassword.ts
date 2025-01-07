@@ -1,67 +1,33 @@
 import { EmailMessage } from "src/services/messageProvider/messageProvider";
+import { OtpCreate } from "src/services/sso/internal/entities/otp";
+import { UserCreate } from "src/services/sso/internal/entities/user";
 import {
-  OtpWithId,
-  Otp,
-  OtpCreate,
-} from "src/services/sso/internal/entities/otp";
-import {
-  UserWithId,
-  User,
-  UserCreate,
-} from "src/services/sso/internal/entities/user";
-
-// TODO: add normal time functions
-const getExpiresAt = () => new Date(new Date().getTime() + 5 * 60000);
-
-const logSeparator = ";";
-
-export interface OtpProvider {
-  byOtp: (e: string) => Promise<OtpWithId | null>;
-  byDestination: (e: string) => Promise<OtpWithId | null>;
-}
-
-export interface Logger {
-  info: (msg: string) => void;
-  error: (msg: string) => void;
-  with: (msg: string) => Logger;
-}
-
-export interface UserProvider {
-  byId: (id: number) => Promise<UserWithId | null>;
-  byEmail: (email: string) => Promise<UserWithId | null>;
-}
+  OtpProvider,
+  UserProvider,
+  OtpGenerator,
+  OtpRemover,
+  OtpSaver,
+  Hasher,
+  UserSaver,
+  SessionSaver,
+  JwtCreator,
+  Logger,
+  AuthenticateResult,
+} from "src/services/sso/internal/types";
+import { EmailPasswordSignUpStrategy } from "src/services/sso/internal/sso";
 
 export interface Sender {
   send: (message: EmailMessage) => Promise<boolean>;
-}
-
-export interface OtpGenerator {
-  generate: () => Promise<string>;
 }
 
 export interface ProviderMessageText {
   messageText: (params: { to: string; code: string }) => EmailMessage;
 }
 
-export interface OtpRemover {
-  byId: (id: number) => Promise<boolean>;
-}
+// TODO: add normal time functions
+const getExpiresAt = () => new Date(new Date().getTime() + 5 * 60000);
 
-export interface OtpSaver {
-  save: (otp: Otp) => Promise<OtpWithId>;
-}
-
-export interface Hasher {
-  hash: (p: string) => Promise<string>;
-}
-
-export interface UserSaver {
-  save: (e: User) => Promise<UserWithId>;
-}
-
-export interface SessionCreator {
-  create: (userId: number, idAddress: string) => Promise<string>;
-}
+const logSeparator = ";";
 
 export const ErrorMessages = {
   OtpAlreadyUsedTryLater: "Otp already used. Try later",
@@ -75,7 +41,9 @@ export const ErrorMessages = {
   MessageWasNotSend: "Message was not send",
 };
 
-export class EmailPasswordSignUpStrategies {
+export class EmailPasswordSignUpStrategies
+  implements EmailPasswordSignUpStrategy
+{
   private op = "email.signUp.stategies.emailOtp";
 
   constructor(
@@ -89,17 +57,28 @@ export class EmailPasswordSignUpStrategies {
     private otpSaver: OtpSaver,
     private hasher: Hasher,
     private userSaver: UserSaver,
-    private sessionCreator: SessionCreator
+    private sessionSaver: SessionSaver,
+    private jwtCreator: JwtCreator
   ) {
     this.logger = logger.with(`op: ${this.op}`);
   }
 
   // check otp
-  async register(credentials: {
-    email: string;
-    password: string;
-    code: string;
-  }): Promise<string> {
+  async register(params: {
+    info: {
+      firstName: string;
+      lastName: string | null;
+    };
+    credentials: {
+      email: string;
+      password: string;
+      code: string;
+    };
+    device: {
+      ipAddress: string;
+    };
+  }): Promise<AuthenticateResult> {
+    const { credentials, device, info } = params;
     const op = `.register${logSeparator}`;
     const logger = this.logger.with(`${op}`);
 
@@ -144,6 +123,8 @@ export class EmailPasswordSignUpStrategies {
     const localUser = UserCreate({
       phone: null,
       id: null,
+      firstName: info.firstName,
+      lastName: info.lastName,
       passwordHash: await this.hasher.hash(credentials.password),
       email: credentials.email,
     });
@@ -157,11 +138,22 @@ export class EmailPasswordSignUpStrategies {
 
     const uId = user.getId();
 
-    return this.sessionCreator.create(uId, " " /* TODO: add IP address */);
+    const jwt = this.jwtCreator.create({
+      userId: uId,
+      firstName: user.getFirstName(),
+      lastName: user.getLastName(),
+      email: user.getEmail(),
+      phone: user.getPhone(),
+    });
+
+    await this.sessionSaver.save(uId, jwt, device);
+
+    return { accessToken: jwt.access.value, refreshToken: jwt.refresh.value };
   }
 
   // send otp to email
-  async verify(credentials: { email: string }): Promise<boolean> {
+  async verify(params: { credentials: { email: string } }): Promise<boolean> {
+    const { credentials } = params;
     const op = `.verify${logSeparator}`;
     const logger = this.logger.with(`${op}`);
 
@@ -183,10 +175,18 @@ export class EmailPasswordSignUpStrategies {
 
     const code = await this.otpGenerator.generate();
 
+    console.log(
+      "🚀 ~ EmailPasswordSignUpStrategies ~ verify ~ credentials.email:",
+      credentials.email
+    );
     const message = this.providerMessageTexter.messageText({
       to: credentials.email,
       code,
     });
+    console.log(
+      "🚀 ~ EmailPasswordSignUpStrategies ~ verify ~ message:",
+      message
+    );
 
     const isSent = await this.sender.send(message);
 

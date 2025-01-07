@@ -50,7 +50,14 @@ interface GeneralParams {
   templateProvider: TemplateProvider;
 }
 
-const getMessage = <T extends MessageTypes, P extends Platforms>(
+export interface Strategies {
+  byPlatformAndType: <T extends MessageTypes, P extends Platforms>(
+    platform: P,
+    type: T
+  ) => (params: MessageTypesParams[T]) => PlatformsMessageTypes[P];
+}
+
+const getTemplate = <T extends MessageTypes, P extends Platforms>(
   gp: GeneralParams,
   type: T,
   platform: P
@@ -60,13 +67,14 @@ const getMessage = <T extends MessageTypes, P extends Platforms>(
   if (!template) {
     throw new Error("Template not exist");
   }
+  console.log("🚀 ~ template:", template);
 
   return template;
 };
 
 export const MessageProvider = (gp: GeneralParams) => ({
-  getMessage: <T extends MessageTypes, P extends Platforms>(
+  getTemplate: <T extends MessageTypes, P extends Platforms>(
     type: T,
     platform: P
-  ) => getMessage(gp, type, platform),
+  ) => getTemplate(gp, type, platform),
 });

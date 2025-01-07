@@ -4,6 +4,11 @@ import {
   OtpCreate,
 } from "src/services/sso/internal/entities/otp";
 import { UserWithId } from "src/services/sso/internal/entities/user";
+import {
+  AuthenticateResult,
+  JwtCreator,
+  SessionSaver,
+} from "src/services/sso/internal/types";
 
 // TODO: add normal time functions
 const getExpiresAt = () => new Date(new Date().getTime() + 5 * 60000);
@@ -44,10 +49,6 @@ interface OtpSaver {
   save: (otp: Otp) => Promise<OtpWithId>;
 }
 
-interface SessionCreator {
-  create: (userId: number, idAddress: string) => Promise<string>;
-}
-
 const ErrorMessages = {
   OtpNotExists: "Otp not exists",
   UserNotExists: "User not exists",
@@ -70,16 +71,22 @@ export class EmailOtp {
     private providerMessageTexter: ProviderMessageText,
     private otpRemover: OtpRemover,
     private otpSaver: OtpSaver,
-    private sessionCreator: SessionCreator
+    private sessionSaver: SessionSaver,
+    private jwtCreator: JwtCreator
   ) {
     this.logger = logger.with(`op: ${this.op}`);
   }
 
   // check otp
-  async authenticate(credentials: {
-    email: string;
-    code: string;
-  }): Promise<string> {
+  async authenticate(
+    credentials: {
+      email: string;
+      code: string;
+    },
+    device: {
+      ipAddress: string;
+    }
+  ): AuthenticateResult {
     const op = `.authenticate${logSeparator}`;
     const logger = this.logger.with(`${op}`);
 
@@ -123,7 +130,17 @@ export class EmailOtp {
 
     await this.otpRemover.byId(otp.getId());
 
-    return this.sessionCreator.create(uId, " " /* TODO: add IP address */);
+    const jwt = this.jwtCreator.create({
+      userId: uId,
+      firstName: user.getFirstName(),
+      lastName: user.getLastName(),
+      email: user.getEmail(),
+      phone: user.getPhone(),
+    });
+
+    await this.sessionSaver.save(uId, jwt, device);
+
+    return { accessToken: jwt.access.value, refreshToken: jwt.refresh.value };
   }
 
   // send otp to email

@@ -1,6 +1,6 @@
-const logSeparator = ";";
+import { AuthenticateResult } from "src/services/sso/internal/types";
 
-type Token = string;
+const logSeparator = ";";
 
 export type EmailMessage = {
   from: string;
@@ -19,13 +19,18 @@ export type EmailMessage = {
 //   verify: (credentials: { email: string }) => Promise<boolean>;
 // }
 
-interface EmailPasswordStrategy {
-  authenticate: (credentials: {
-    email: string;
-    password: string;
-  }) => Promise<Token>;
+export interface EmailPasswordSignInStrategy {
+  authenticate: (params: {
+    credentials: {
+      email: string;
+      password: string;
+    };
+    device: {
+      ipAddress: string;
+    };
+  }) => AuthenticateResult;
 
-  verify: (credentials: { email: string }) => Promise<boolean>;
+  verify: (params: { credentials: { email: string } }) => Promise<boolean>;
 }
 
 // interface PhoneOtpStrategy {
@@ -46,24 +51,42 @@ interface EmailPasswordStrategy {
 //   verify: (credentials: { phone: string }) => Promise<boolean>;
 // }
 
-interface PhonePasswordSignUpStrategy {
-  register: (credentials: {
-    phone: string;
-    password: string;
-    code: string;
-  }) => Promise<Token>;
+export interface PhonePasswordSignUpStrategy {
+  register: (params: {
+    info: {
+      firstName: string;
+      lastName: string | null;
+    };
+    credentials: {
+      phone: string;
+      password: string;
+      code: string;
+    };
+    device: {
+      ipAddress: string;
+    };
+  }) => Promise<AuthenticateResult>;
 
-  verify: (credentials: { phone: string }) => Promise<boolean>;
+  verify: (params: { credentials: { phone: string } }) => Promise<boolean>;
 }
 
-interface EmailPasswordSignUpStrategy {
-  register: (credentials: {
-    email: string;
-    password: string;
-    code: string;
-  }) => Promise<Token>;
+export interface EmailPasswordSignUpStrategy {
+  register: (params: {
+    info: {
+      firstName: string;
+      lastName: string | null;
+    };
+    credentials: {
+      email: string;
+      password: string;
+      code: string;
+    };
+    device: {
+      ipAddress: string;
+    };
+  }) => Promise<AuthenticateResult>;
 
-  verify: (credentials: { email: string }) => Promise<boolean>;
+  verify: (params: { credentials: { email: string } }) => Promise<boolean>;
 }
 
 export interface Logger {
@@ -84,7 +107,7 @@ type ActionToStrategies = {
   signIn: {
     // EmailOtpStategy: EmailOtpStrategy;
     // PhoneOtpStategy: PhoneOtpStrategy;
-    EmailPasswordStategy: EmailPasswordStrategy;
+    EmailPasswordSignInStrategy: EmailPasswordSignInStrategy;
     // PhonePasswordStategy: PhonePasswordStrategy;
   };
 };
@@ -102,8 +125,8 @@ export class SsoService {
   // TODO: replace any to normal types
   public authenticate = <M extends keyof ActionToStrategies["signIn"]>(
     method: M,
-    credentials: Parameters<ActionToStrategies["signIn"][M]["authenticate"]>[0]
-  ): Promise<Token> => {
+    params: Parameters<ActionToStrategies["signIn"][M]["authenticate"]>[0]
+  ): AuthenticateResult => {
     const op = `.authenticate${logSeparator}`;
     const logger = this.logger.with(`${op}`);
 
@@ -117,13 +140,12 @@ export class SsoService {
       throw new Error(ErrorMessages.UnsuporterAuthMethod);
     }
 
-    //@ts-ignore
-    return strategy.authenticate(credentials);
+    return strategy.authenticate(params);
   };
 
   public verify = <M extends keyof ActionToStrategies["signIn"]>(
     method: M,
-    credentials: Parameters<ActionToStrategies["signIn"][M]["verify"]>[0]
+    params: Parameters<ActionToStrategies["signIn"][M]["verify"]>[0]
   ): Promise<boolean> => {
     const op = `.verify${logSeparator}`;
     const logger = this.logger.with(`${op}`);
@@ -138,13 +160,12 @@ export class SsoService {
       throw new Error(ErrorMessages.UnsuporterAuthMethod);
     }
 
-    //@ts-ignore
-    return strategy.verify(credentials);
+    return strategy.verify(params);
   };
 
   public preRegister = <M extends keyof ActionToStrategies["signUp"]>(
     method: M,
-    credentials: Parameters<ActionToStrategies["signUp"][M]["verify"]>[0]
+    params: Parameters<ActionToStrategies["signUp"][M]["verify"]>[0]
   ): Promise<boolean> => {
     const op = `.preRegister${logSeparator}`;
     const logger = this.logger.with(`${op}`);
@@ -160,13 +181,13 @@ export class SsoService {
     }
 
     //@ts-ignore
-    return strategy.verify(credentials);
+    return strategy.verify(params);
   };
 
   public register = <M extends keyof ActionToStrategies["signUp"]>(
     method: M,
-    credentials: Parameters<ActionToStrategies["signUp"][M]["register"]>[0]
-  ): Promise<Token> => {
+    params: Parameters<ActionToStrategies["signUp"][M]["register"]>[0]
+  ): Promise<AuthenticateResult> => {
     const op = `.preRegister${logSeparator}`;
     const logger = this.logger.with(`${op}`);
 
@@ -181,6 +202,6 @@ export class SsoService {
     }
 
     //@ts-ignore
-    return strategy.register(credentials);
+    return strategy.register(params);
   };
 }

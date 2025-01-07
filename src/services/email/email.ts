@@ -22,29 +22,34 @@ const ErrorMessages = {
   EmailWasNotSended: "Email was not sended",
 };
 
-export class EmailService {
-  private op = "email.emailService";
-
-  constructor(private emailSender: EmailSender, private logger: Logger) {
-    this.logger = logger.with(`op: ${this.op}`);
-  }
-
-  public async send(message: Message): Promise<boolean> {
-    const op = `.send${logSeparator}`;
-    const logger = this.logger.with(`${op}`);
-
-    logger.info(`mess: ${message}`);
-
-    const isComplete = await this.emailSender.send(message);
-
-    if (!isComplete) {
-      const msg = `err: ${ErrorMessages.EmailWasNotSended}`;
-
-      logger.error(msg);
-
-      throw new Error(ErrorMessages.EmailWasNotSended);
-    }
-
-    return true;
-  }
+interface GeneralParams {
+  emailSender: EmailSender;
+  logger: Logger;
 }
+
+const send = async (gp: GeneralParams, message: Message): Promise<boolean> => {
+  const op = `.send${logSeparator}`;
+  const scopedLogger = gp.logger.with(op);
+
+  scopedLogger.info(`mess: ${JSON.stringify(message)}`);
+
+  const isComplete = await gp.emailSender.send(message);
+
+  if (!isComplete) {
+    const msg = `err: ${ErrorMessages.EmailWasNotSended}`;
+    scopedLogger.error(msg);
+    throw new Error(ErrorMessages.EmailWasNotSended);
+  }
+
+  return true;
+};
+
+export const EmailService = (gp: GeneralParams) => {
+  const op = "email.emailService";
+  const scopedLogger = gp.logger.with(`op: ${op}`);
+
+  return {
+    send: (message: Message) =>
+      send({ emailSender: gp.emailSender, logger: scopedLogger }, message),
+  };
+};

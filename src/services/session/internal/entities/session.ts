@@ -2,19 +2,30 @@ import { IdRequired } from "src/utils/types";
 
 export type SessionWithId = IdRequired<Session>;
 
-export type SessionParams = {
-  id: string | null;
-  userId: number;
-  expiresAt: Date;
-  ipAddress: string | null; // TODO: Make required
+type SessionStructJwt = {
+  access: {
+    expiresAt: Date;
+    value: string;
+  };
+  refresh: {
+    expiresAt: Date;
+    value: string;
+  };
 };
+
+export type SessionParamsJwt = SessionStructJwt;
 
 type SessionStruct = {
   id: string | null;
   userId: number;
-  expiresAt: Date;
-  ipAddress: string | null;
+  jwt: SessionStructJwt;
+  device: {
+    ipAddress: string;
+  };
+  createdAt: Date;
 };
+
+type SessionParams = SessionStruct;
 
 const setId = (session: SessionStruct, newId: string) => {
   session.id = newId;
@@ -24,24 +35,30 @@ const getId = (session: SessionStruct) => session.id;
 
 const getUserId = (session: SessionStruct) => session.userId;
 
-const getExpiresAt = (session: SessionStruct) => session.expiresAt;
+const getIpAddress = (session: SessionStruct) => session.device.ipAddress;
 
-const getIpAddress = (session: SessionStruct) => session.ipAddress;
+const getRefreshTokenData = (session: SessionStruct) => session.jwt.refresh;
+const getAccessTokenData = (session: SessionStruct) => session.jwt.refresh;
+
+const getCreatedAt = (session: SessionStruct) => session.createdAt;
 
 export const SessionCreate = (params: SessionParams) => {
   const session: SessionStruct = {
     id: params.id,
     userId: params.userId,
-    expiresAt: params.expiresAt,
-    ipAddress: params.ipAddress,
+    jwt: params.jwt,
+    device: params.device,
+    createdAt: params.createdAt,
   };
 
   return {
     setId: (newId: string) => setId(session, newId),
     getId: () => getId(session),
     getUserId: () => getUserId(session),
-    getExpiresAt: () => getExpiresAt(session),
     getIpAddress: () => getIpAddress(session),
+    getRefreshTokenData: () => getRefreshTokenData(session),
+    getAccessTokenData: () => getAccessTokenData(session),
+    getCreatedAt: () => getCreatedAt(session),
   };
 };
 

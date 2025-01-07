@@ -18,6 +18,8 @@ const ErrorMessages = {
 type UserRow = {
   id: number;
   password_hash: string;
+  first_name: string;
+  last_name: string | null;
   email_value: string | null;
   email_is_verified: number;
   phone_value: string | null;
@@ -40,16 +42,18 @@ const initializeUserTable = async (gp: GeneralParams): Promise<void> => {
   const scopedLogger = gp.logger.with(op);
 
   try {
-    await gp.db.exec(`
-      CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY,
-        password_hash TEXT NOT NULL,
-        email_value TEXT NULL,
-        email_is_verified INTEGER NOT NULL,
-        phone_value TEXT NULL,
-        phone_is_verified INTEGER NOT NULL
-      );
-    `);
+    // await gp.db.exec(`
+    //   CREATE TABLE IF NOT EXISTS users (
+    //     id INTEGER PRIMARY KEY,
+    //     password_hash TEXT NOT NULL,
+    //     email_value TEXT NULL,
+    //     first_name TEXT NULL,
+    //     last_name TEXT NULL,
+    //     email_is_verified INTEGER NOT NULL,
+    //     phone_value TEXT NULL,
+    //     phone_is_verified INTEGER NOT NULL
+    //   );
+    // `);
     scopedLogger.info("Table 'users' initialized successfully");
   } catch (error) {
     scopedLogger.error(`err: Failed to initialize table 'users': ${error}`);
@@ -61,24 +65,32 @@ const save = async (gp: GeneralParams, user: User): Promise<UserWithId> => {
   const op = `.save${logSeparator}`;
   const scopedLogger = gp.logger.with(op);
 
+  console.log("USER_Before", user);
+
   if (user.getId()) {
     await gp.db.run(
-      `UPDATE users SET password_hash = ?, email_value = ?, email_is_verified = ?, phone_value = ?, phone_is_verified = ? WHERE id = ?`,
+      `UPDATE users SET password_hash = ?, email_value = ?, email_is_verified = ?, phone_value = ?, phone_is_verified = ?, first_name = ?, last_name = ? WHERE id = ?`,
       user.getPasswordHash(),
       user.getContacts().email.value,
       user.getContacts().email.isVerified,
       user.getContacts().phone.value,
       user.getContacts().phone.isVerified,
+      user.getFirstName(),
+      user.getLastName(),
+
+      // where
       user.getId()
     );
   } else {
     const result = await gp.db.run(
-      `INSERT INTO users (password_hash, email_value, email_is_verified, phone_value, phone_is_verified) VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO users (password_hash, email_value, email_is_verified, phone_value, phone_is_verified, first_name, last_name) VALUES (?, ?, ?, ?, ?, ?, ?)`,
       user.getPasswordHash(),
       user.getContacts().email.value,
       user.getContacts().email.isVerified,
       user.getContacts().phone.value,
-      user.getContacts().phone.isVerified
+      user.getContacts().phone.isVerified,
+      user.getFirstName(),
+      user.getLastName()
     );
 
     if (!result.lastID) {
@@ -88,6 +100,8 @@ const save = async (gp: GeneralParams, user: User): Promise<UserWithId> => {
 
     user.setId(result.lastID);
   }
+
+  console.log("USER", user);
 
   return user as UserWithId;
 };
@@ -145,6 +159,8 @@ const mapToUser = (row: UserRow): UserWithId => {
     id: row.id,
     passwordHash: row.password_hash,
     phone: row.phone_value,
+    firstName: row.first_name,
+    lastName: row.last_name,
   });
 
   if (!checkHasId(user)) {

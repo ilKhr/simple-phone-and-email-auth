@@ -13,10 +13,13 @@ const ErrorMessages = {
 };
 
 type SessionRow = {
-  id: string;
+  refresh_token: string; // primary key
+  access_token: string;
   user_id: number;
-  expires_at: string;
-  ip_address: string | null;
+  refresh_expires_at: Date;
+  access_expires_at: Date;
+  ip_address: string;
+  created_at: Date;
 };
 
 interface Logger {
@@ -37,24 +40,22 @@ const save = async (
   const op = `.save${logSeparator}`;
   const scopedLogger = gp.logger.with(op);
 
-  if (!session.getId()) {
-    const newId = await gp.generatorId.generateId();
-    session.setId(newId);
-  }
-
-  const key = `session:${session.getId()}`;
-  const sessionData = {
-    id: session.getId(),
+  const key = `session:${session.getRefreshTokenData().value}`;
+  const sessionData: SessionRow = {
+    refresh_token: session.getRefreshTokenData().value,
+    access_token: session.getAccessTokenData().value,
     user_id: session.getUserId(),
-    expires_at: session.getExpiresAt().toISOString(),
+    refresh_expires_at: session.getRefreshTokenData().expiresAt,
+    access_expires_at: session.getAccessTokenData().expiresAt,
     ip_address: session.getIpAddress(),
+    created_at: session.getCreatedAt(),
   };
 
   try {
     await gp.redisClient.set(key, JSON.stringify(sessionData));
     await gp.redisClient.expireAt(
       key,
-      Math.floor(session.getExpiresAt().getTime() / 1000)
+      Math.floor(session.getRefreshTokenData().expiresAt.getTime() / 1000)
     );
   } catch (err) {
     scopedLogger.error(`err: Error while saving session: ${err}`);
@@ -95,10 +96,22 @@ const deleteById = async (gp: GeneralParams, id: string): Promise<boolean> => {
 
 const mapToSession = (row: SessionRow): SessionWithId => {
   const session = SessionCreate({
-    id: row.id,
+    id: row.refresh_token,
     userId: row.user_id,
-    expiresAt: new Date(row.expires_at),
-    ipAddress: row.ip_address,
+    device: {
+      ipAddress: row.ip_address,
+    },
+    jwt: {
+      access: {
+        value: row.access_token,
+        expiresAt: new Date(row.access_expires_at),
+      },
+      refresh: {
+        expiresAt: new Date(row.refresh_expires_at),
+        value: row.refresh_token,
+      },
+    },
+    createdAt: new Date(row.created_at),
   });
 
   if (!checkHasId(session)) {

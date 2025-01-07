@@ -4,12 +4,18 @@ import { SsoService } from "src/services/sso/internal/sso";
 export const schema = {
   body: {
     type: "object",
-    required: ["phone", "password", "code"],
+    required: ["phone", "password", "firstName", "code"],
     properties: {
       phone: {
         type: "string",
       },
       password: {
+        type: "string",
+      },
+      firstName: {
+        type: "string",
+      },
+      lastName: {
         type: "string",
       },
       code: {
@@ -21,9 +27,9 @@ export const schema = {
   response: {
     200: {
       type: "object",
-      required: ["sessionId"],
+      required: ["accessToken"],
       properties: {
-        sessionId: {
+        accessToken: {
           type: "string",
         },
       },
@@ -39,13 +45,28 @@ export const handlerFactory = (
   schema: typeof schema;
 } => ({
   handler: async (request) => {
-    const sessionId = await ssoService.register(
+    const { accessToken, refreshToken } = await ssoService.register(
       "PhonePasswordSignUpStrategy",
-      request.body
+      {
+        info: {
+          firstName: request.body.firstName,
+          lastName: request.body.lastName || null,
+        },
+        credentials: {
+          code: request.body.code,
+          password: request.body.password,
+          phone: request.body.phone,
+        },
+        device: {
+          ipAddress: request.ip,
+        },
+      }
     );
 
+    console.log("refreshToken", refreshToken);
+
     return {
-      sessionId,
+      accessToken,
     };
   },
   schema,
