@@ -1,7 +1,5 @@
 import { AuthenticateResult } from "src/services/sso/internal/types";
 
-const logSeparator = ";";
-
 export type EmailMessage = {
   from: string;
   to: string;
@@ -127,7 +125,7 @@ export class SsoService {
     method: M,
     params: Parameters<ActionToStrategies["signIn"][M]["authenticate"]>[0]
   ): AuthenticateResult => {
-    const op = `.authenticate${logSeparator}`;
+    const op = `authenticate`;
     const logger = this.logger.with(`${op}`);
 
     const strategy = this.signInStrategies[method];
@@ -147,7 +145,7 @@ export class SsoService {
     method: M,
     params: Parameters<ActionToStrategies["signIn"][M]["verify"]>[0]
   ): Promise<boolean> => {
-    const op = `.verify${logSeparator}`;
+    const op = `verify`;
     const logger = this.logger.with(`${op}`);
 
     const strategy = this.signInStrategies[method];
@@ -167,7 +165,7 @@ export class SsoService {
     method: M,
     params: Parameters<ActionToStrategies["signUp"][M]["verify"]>[0]
   ): Promise<boolean> => {
-    const op = `.preRegister${logSeparator}`;
+    const op = `preRegister`;
     const logger = this.logger.with(`${op}`);
 
     const strategy = this.signUpStrategies[method];
@@ -188,7 +186,7 @@ export class SsoService {
     method: M,
     params: Parameters<ActionToStrategies["signUp"][M]["register"]>[0]
   ): Promise<AuthenticateResult> => {
-    const op = `.preRegister${logSeparator}`;
+    const op = `preRegister`;
     const logger = this.logger.with(`${op}`);
 
     const strategy = this.signUpStrategies[method];

@@ -26,12 +26,16 @@ export class PinoAdapter implements Logger {
   }
 
   with(msg: string): Logger {
+    const newContext = this.logger.context
+      ? `${this.logger.context}.${msg}`
+      : `👆${msg}`;
+
     const childLogger = this.logger.child({
-      context: `${this.logger.context}${msg}`,
+      context: newContext,
     });
 
     //@ts-ignore
-    childLogger.context = `${this.logger.context}${msg}`;
+    childLogger.context = newContext;
 
     return new PinoAdapter(childLogger);
   }

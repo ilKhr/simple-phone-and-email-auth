@@ -1,3 +1,8 @@
+type GeneralEmailParams = {
+  from: string;
+  to: string;
+};
+
 export type EmailMessage = {
   from: string;
   to: string;
@@ -19,16 +24,13 @@ export type PlatformsMessageTypes = {
 export type Platforms = keyof PlatformsMessageTypes;
 
 export type MessageTypesParams = {
-  welcome: {
+  welcome: GeneralEmailParams & {
     name: string;
-    to: string;
   };
-  otp: {
-    to: string;
+  otp: GeneralEmailParams & {
     code: string;
   };
-  verify: {
-    to: string;
+  verify: GeneralEmailParams & {
     code: string;
   };
 };
@@ -67,7 +69,6 @@ const getTemplate = <T extends MessageTypes, P extends Platforms>(
   if (!template) {
     throw new Error("Template not exist");
   }
-  console.log("🚀 ~ template:", template);
 
   return template;
 };

@@ -1,5 +1,3 @@
-const logSeparator = ";";
-
 interface Logger {
   info: (msg: string) => void;
   error: (msg: string) => void;
@@ -28,7 +26,7 @@ interface GeneralParams {
 }
 
 const send = async (gp: GeneralParams, message: Message): Promise<boolean> => {
-  const op = `.send${logSeparator}`;
+  const op = `send`;
   const scopedLogger = gp.logger.with(op);
 
   scopedLogger.info(`mess: ${JSON.stringify(message)}`);

@@ -5,7 +5,7 @@ interface Sender {
   send: (mess: PhoneMessage) => Promise<boolean>;
 }
 
-type Providers = Record<"RU", Sender>;
+type Providers = Record<"RU", Sender[]>;
 
 type GeneralParams = {
   providers: Providers;
@@ -31,13 +31,18 @@ const getProvider = (providers: Providers, phone: string) => {
 };
 
 export const PhoneCountyProvidersResolver = (gp: GeneralParams) => {
-  const providers = gp.providers;
+  const countryProviders = gp.providers;
 
   return {
     send: async (mess: PhoneMessage) => {
-      const provider = getProvider(providers, mess.to);
+      const localProvicers = getProvider(countryProviders, mess.to);
 
-      await provider.send(mess);
+      for (const provider of localProvicers) {
+        try {
+          await provider.send(mess);
+          break;
+        } catch (e) {}
+      }
 
       return true;
     },

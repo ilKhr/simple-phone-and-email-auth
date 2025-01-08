@@ -27,8 +27,6 @@ export class SQLiteConnection {
       filename: this.dbPath,
       driver: sqlite3.Database,
     });
-
-    await this.createTables();
   }
 
   public async getDb(): Promise<Database<sqlite3.Database, sqlite3.Statement>> {
@@ -43,23 +41,5 @@ export class SQLiteConnection {
       await this.db.close();
       this.db = null;
     }
-  }
-
-  private async createTables(): Promise<void> {
-    if (!this.db) {
-      throw new Error(ErrorMessages.DBConnectNotInit);
-    }
-
-    // TODO: create migrations
-    await this.db.exec(`
-      CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        password_hash TEXT NOT NULL,
-        email_value TEXT,
-        email_is_verified INTEGER DEFAULT 0,
-        phone_value TEXT,
-        phone_is_verified INTEGER DEFAULT 0
-      )
-    `);
   }
 }

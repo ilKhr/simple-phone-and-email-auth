@@ -21,13 +21,15 @@ export interface Sender {
 }
 
 export interface ProviderMessageText {
-  messageText: (params: { to: string; code: string }) => EmailMessage;
+  messageText: (params: {
+    to: string;
+    code: string;
+    from: string;
+  }) => EmailMessage;
 }
 
 // TODO: add normal time functions
 const getExpiresAt = () => new Date(new Date().getTime() + 5 * 60000);
-
-const logSeparator = ";";
 
 export const ErrorMessages = {
   OtpAlreadyUsedTryLater: "Otp already used. Try later",
@@ -58,7 +60,8 @@ export class EmailPasswordSignUpStrategies
     private hasher: Hasher,
     private userSaver: UserSaver,
     private sessionSaver: SessionSaver,
-    private jwtCreator: JwtCreator
+    private jwtCreator: JwtCreator,
+    private fromEmail: string
   ) {
     this.logger = logger.with(`op: ${this.op}`);
   }
@@ -79,7 +82,7 @@ export class EmailPasswordSignUpStrategies
     };
   }): Promise<AuthenticateResult> {
     const { credentials, device, info } = params;
-    const op = `.register${logSeparator}`;
+    const op = `register`;
     const logger = this.logger.with(`${op}`);
 
     const otp = await this.otpProvider.byOtp(credentials.code);
@@ -154,7 +157,7 @@ export class EmailPasswordSignUpStrategies
   // send otp to email
   async verify(params: { credentials: { email: string } }): Promise<boolean> {
     const { credentials } = params;
-    const op = `.verify${logSeparator}`;
+    const op = `verify`;
     const logger = this.logger.with(`${op}`);
 
     const user = await this.userProvider.byEmail(credentials.email);
@@ -175,18 +178,11 @@ export class EmailPasswordSignUpStrategies
 
     const code = await this.otpGenerator.generate();
 
-    console.log(
-      "🚀 ~ EmailPasswordSignUpStrategies ~ verify ~ credentials.email:",
-      credentials.email
-    );
     const message = this.providerMessageTexter.messageText({
       to: credentials.email,
       code,
+      from: this.fromEmail,
     });
-    console.log(
-      "🚀 ~ EmailPasswordSignUpStrategies ~ verify ~ message:",
-      message
-    );
 
     const isSent = await this.sender.send(message);
 

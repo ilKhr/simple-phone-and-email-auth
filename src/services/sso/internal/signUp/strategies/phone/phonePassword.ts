@@ -19,8 +19,6 @@ import {
 // TODO: add normal time functions
 const getExpiresAt = () => new Date(new Date().getTime() + 5 * 60000);
 
-const logSeparator = ";";
-
 export const ErrorMessages = {
   OtpAlreadyUsedTryLater: "Otp already used. Try later",
   OtpIsExpired: "Otp is expired",
@@ -37,7 +35,11 @@ export interface Sender {
   send: (message: PhoneMessage) => Promise<boolean>;
 }
 export interface ProviderMessageText {
-  messageText: (params: { to: string; code: string }) => PhoneMessage;
+  messageText: (params: {
+    to: string;
+    code: string;
+    from: string;
+  }) => PhoneMessage;
 }
 
 export class PhonePasswordSignUpStrategies
@@ -57,7 +59,8 @@ export class PhonePasswordSignUpStrategies
     private hasher: Hasher,
     private userSaver: UserSaver,
     private sessionSaver: SessionSaver,
-    private jwtCreator: JwtCreator
+    private jwtCreator: JwtCreator,
+    private fromEmail: string
   ) {
     this.logger = logger.with(`op: ${this.op}`);
   }
@@ -78,7 +81,7 @@ export class PhonePasswordSignUpStrategies
     };
   }): Promise<AuthenticateResult> {
     const { credentials, device, info } = params;
-    const op = `.register${logSeparator}`;
+    const op = `register`;
     const logger = this.logger.with(`${op}`);
 
     const otp = await this.otpProvider.byOtp(credentials.code);
@@ -159,7 +162,7 @@ export class PhonePasswordSignUpStrategies
   // send otp to phone
   async verify(params: { credentials: { phone: string } }): Promise<boolean> {
     const { credentials } = params;
-    const op = `.verify${logSeparator}`;
+    const op = `verify`;
     const logger = this.logger.with(`${op}`);
 
     const user = await this.userProvider.byPhone(credentials.phone);
@@ -183,6 +186,7 @@ export class PhonePasswordSignUpStrategies
     const message = this.providerMessageTexter.messageText({
       to: credentials.phone,
       code,
+      from: this.fromEmail,
     });
 
     const isSent = await this.sender.send(message);

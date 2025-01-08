@@ -6,8 +6,6 @@ import {
   SessionSaver,
 } from "src/services/sso/internal/types";
 
-const logSeparator = ";";
-
 interface PasswordComparer {
   compare: (p: string, h: string) => Promise<boolean>;
 }
@@ -47,7 +45,7 @@ export class PhonePassword {
       ipAddress: string;
     }
   ): AuthenticateResult {
-    const op = `.authenticate${logSeparator}`;
+    const op = `authenticate`;
     const logger = this.logger.with(`${op}`);
 
     const { phone, password } = credentials;
@@ -99,7 +97,7 @@ export class PhonePassword {
 
   // check user exists
   async verify(credentials: { phone: string }): Promise<boolean> {
-    const op = `.verify${logSeparator}`;
+    const op = `verify`;
     const logger = this.logger.with(`${op}`);
 
     const user = await this.userProvider.byPhone(credentials.phone);

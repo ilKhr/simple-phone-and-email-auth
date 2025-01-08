@@ -7,8 +7,6 @@ import {
 } from "src/services/sso/internal/entities/user";
 import { checkHasId } from "src/storage/utils/checkHasId";
 
-const logSeparator = ";";
-
 const ErrorMessages = {
   LastIdNotExists: "Last id not exists",
   ChangesNotExists: "Changes not exists",
@@ -38,22 +36,22 @@ type GeneralParams = {
 };
 
 const initializeUserTable = async (gp: GeneralParams): Promise<void> => {
-  const op = `.initialize${logSeparator}`;
+  const op = `initialize`;
   const scopedLogger = gp.logger.with(op);
 
   try {
-    // await gp.db.exec(`
-    //   CREATE TABLE IF NOT EXISTS users (
-    //     id INTEGER PRIMARY KEY,
-    //     password_hash TEXT NOT NULL,
-    //     email_value TEXT NULL,
-    //     first_name TEXT NULL,
-    //     last_name TEXT NULL,
-    //     email_is_verified INTEGER NOT NULL,
-    //     phone_value TEXT NULL,
-    //     phone_is_verified INTEGER NOT NULL
-    //   );
-    // `);
+    await gp.db.exec(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY,
+        password_hash TEXT NOT NULL,
+        email_value TEXT NULL,
+        first_name TEXT NULL,
+        last_name TEXT NULL,
+        email_is_verified INTEGER NOT NULL,
+        phone_value TEXT NULL,
+        phone_is_verified INTEGER NOT NULL
+      );
+    `);
     scopedLogger.info("Table 'users' initialized successfully");
   } catch (error) {
     scopedLogger.error(`err: Failed to initialize table 'users': ${error}`);
@@ -62,10 +60,8 @@ const initializeUserTable = async (gp: GeneralParams): Promise<void> => {
 };
 
 const save = async (gp: GeneralParams, user: User): Promise<UserWithId> => {
-  const op = `.save${logSeparator}`;
+  const op = `save`;
   const scopedLogger = gp.logger.with(op);
-
-  console.log("USER_Before", user);
 
   if (user.getId()) {
     await gp.db.run(
@@ -100,8 +96,6 @@ const save = async (gp: GeneralParams, user: User): Promise<UserWithId> => {
 
     user.setId(result.lastID);
   }
-
-  console.log("USER", user);
 
   return user as UserWithId;
 };
@@ -140,7 +134,7 @@ const deleteUserById = async (
   gp: GeneralParams,
   id: number
 ): Promise<boolean> => {
-  const op = `.deleteById${logSeparator}`;
+  const op = `deleteById`;
   const scopedLogger = gp.logger.with(op);
 
   const result = await gp.db.run(`DELETE FROM users WHERE id = ?`, id);
@@ -171,12 +165,17 @@ const mapToUser = (row: UserRow): UserWithId => {
 };
 
 export const SqliteUserRepository = async (gp: GeneralParams) => {
-  await initializeUserTable(gp);
+  const op = "storage.sqlite3.user";
+  const logger = gp.logger.with(op);
+
+  const scopedGp = { ...gp, logger };
+
+  await initializeUserTable(scopedGp);
   return {
-    save: (user: User) => save(gp, user),
-    byId: (id: number) => byId(gp, id),
-    byEmail: (email: string) => byEmail(gp, email),
-    byPhone: (phone: string) => byPhone(gp, phone),
-    deleteUserById: (id: number) => deleteUserById(gp, id),
+    save: (user: User) => save(scopedGp, user),
+    byId: (id: number) => byId(scopedGp, id),
+    byEmail: (email: string) => byEmail(scopedGp, email),
+    byPhone: (phone: string) => byPhone(scopedGp, phone),
+    deleteUserById: (id: number) => deleteUserById(scopedGp, id),
   };
 };

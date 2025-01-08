@@ -6,8 +6,6 @@ import {
 } from "src/services/session/internal/entities/session";
 import { checkHasId } from "src/storage/utils/checkHasId";
 
-const logSeparator = ";";
-
 const ErrorMessages = {
   EntityIdNotExists: "Entity id not exists",
 };
@@ -37,7 +35,7 @@ const save = async (
   gp: GeneralParams,
   session: Session
 ): Promise<SessionWithId> => {
-  const op = `.save${logSeparator}`;
+  const op = `save`;
   const scopedLogger = gp.logger.with(op);
 
   const key = `session:${session.getRefreshTokenData().value}`;
@@ -69,7 +67,7 @@ const byId = async (
   gp: GeneralParams,
   id: string
 ): Promise<SessionWithId | null> => {
-  const op = `.byId${logSeparator}`;
+  const op = "byId";
   const scopedLogger = gp.logger.with(op);
 
   const key = `session:${id}`;
@@ -122,9 +120,14 @@ const mapToSession = (row: SessionRow): SessionWithId => {
 };
 
 export const RedisSessionRepository = (gp: GeneralParams) => {
+  const op = "storage.redis.session";
+  const logger = gp.logger.with(op);
+
+  const scopedGp = { ...gp, logger };
+
   return {
-    save: (session: Session) => save(gp, session),
-    byId: (id: string) => byId(gp, id),
-    deleteById: (id: string) => deleteById(gp, id),
+    save: (session: Session) => save(scopedGp, session),
+    byId: (id: string) => byId(scopedGp, id),
+    deleteById: (id: string) => deleteById(scopedGp, id),
   };
 };

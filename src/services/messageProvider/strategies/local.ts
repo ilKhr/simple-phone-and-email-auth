@@ -50,7 +50,10 @@ const getByType = <T extends MessageTypes, P extends Platforms>(
   return templates[type];
 };
 
-const byPlatformAndType: Strategies["byPlatformAndType"] = (platform, type) => {
+const byPlatformAndType = <T extends MessageTypes, P extends Platforms>(
+  platform: P,
+  type: T
+) => {
   const templates = getByPlatform(platform);
   const template = getByType(templates, type);
   return template;

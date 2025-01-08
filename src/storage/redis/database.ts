@@ -1,7 +1,5 @@
 import { createClient, RedisClientType } from "redis";
 
-const logSeparator = ";";
-
 const ErrorMessages = {
   Redis: "Redis connection is not initialized",
   RedisConnectNotInit: "Redis connection is not initialized",
@@ -43,7 +41,7 @@ export class RedisConnection {
   }
 
   private async initialize(): Promise<void> {
-    const op = `.initialize${logSeparator}`;
+    const op = `initialize`;
     const logger = this.logger.with(`${op}`);
 
     this.client = createClient({ url: this.url });
@@ -65,7 +63,7 @@ export class RedisConnection {
   }
 
   public async close(): Promise<void> {
-    const op = `.close${logSeparator}`;
+    const op = `close`;
     const logger = this.logger.with(`${op}`);
 
     if (this.client) {

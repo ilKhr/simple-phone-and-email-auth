@@ -21,16 +21,17 @@ import { SQLiteConnection } from "src/storage/sqlite3/database";
 import { SqliteOtpRepository } from "src/storage/sqlite3/otp";
 import { SqliteUserRepository } from "src/storage/sqlite3/user";
 import { randomStringGenerator, otpGenerator } from "src/utils/generators";
-import { SmsRu } from "src/services/phone/integrations/smsru";
+import { SmsRu } from "src/services/phone/integrations/smsru/smsru";
 import { PhoneService } from "src/services/phone/phone";
 import { PhonePasswordSignUpStrategies } from "src/services/sso/internal/signUp/strategies/phone/phonePassword";
 import { PhoneCountyProvidersResolver } from "src/services/phone/resolver";
 import { JwtAdapter } from "src/adapters/jwt";
+import { LocalSms } from "src/services/phone/integrations/smsru/local";
 
 (async () => {
   const mode = "local";
 
-  const config = configs[mode];
+  const config = configs[mode].config;
 
   const pinoLogger = pino({
     level: "info",
@@ -42,16 +43,13 @@ import { JwtAdapter } from "src/adapters/jwt";
   // TODO: setup logger for different MODE
   const logger = new PinoAdapter(pinoLogger);
 
-  // TODO: add config
   const connectionSqlite = await SQLiteConnection.getInstance(
-    // TODO: add path from config
-    config.config.services.sso.database.sqlite.url
+    config.services.sso.database.sqlite.url
   );
   const dbSqlite = await connectionSqlite.getDb();
 
   const connectionRedis = await RedisConnection.getInstance(
-    // TODO: add path from config
-    config.config.services.session.database.redis.url,
+    config.services.session.database.redis.url,
     logger
   );
 
@@ -71,29 +69,35 @@ import { JwtAdapter } from "src/adapters/jwt";
     templateProvider: localMessageStrategy,
   });
 
-  const jwt = JwtAdapter(config.config.services.sso.jwt);
+  const jwt = JwtAdapter(config.services.sso.jwt);
   const passwordService = PasswordService({ hasher: bcrypt });
 
-  const emailSender = Nodemailer({ nmParams: config.config.services.email });
+  const emailSender = Nodemailer({ nmParams: config.services.email });
   const phoneResolver = PhoneCountyProvidersResolver({
     providers: {
-      RU: SmsRu({
-        smsRuParams: config.config.services.phone,
-        logger,
-      }),
+      RU: [
+        SmsRu({
+          smsRuParams: config.services.phone.smsRu,
+          logger,
+        }),
+        LocalSms({
+          logger,
+          isActive: config.services.phone.local.isActive,
+        }),
+      ],
     },
   });
 
   const emailSendService = EmailService({ emailSender, logger });
   const phoneSendService = new PhoneService(phoneResolver, logger);
 
-  const sessionService = new SessionService(
-    sessionRepository,
-    {
+  const sessionService = SessionService({
+    logger,
+    sessionRemover: {
       byId: sessionRepository.deleteById,
     },
-    logger
-  );
+    sessionSaver: sessionRepository,
+  });
 
   const ssoService = new SsoService(
     {
@@ -124,7 +128,8 @@ import { JwtAdapter } from "src/adapters/jwt";
         passwordService,
         userRepository,
         { save: sessionService.create },
-        jwt
+        jwt,
+        config.services.email.from.noreply
       ),
       PhonePasswordSignUpStrategy: new PhonePasswordSignUpStrategies(
         otpRepository,
@@ -144,7 +149,8 @@ import { JwtAdapter } from "src/adapters/jwt";
         passwordService,
         userRepository,
         { save: sessionService.create },
-        jwt
+        jwt,
+        config.services.email.from.noreply
       ),
     },
     logger
@@ -152,7 +158,7 @@ import { JwtAdapter } from "src/adapters/jwt";
 
   const server = await Server({
     logger: pinoLogger,
-    config: config.config.services.sso.http,
+    config: config.services.sso.http,
     ssoService,
   });
 

@@ -13,8 +13,6 @@ import {
 // TODO: add normal time functions
 const getExpiresAt = () => new Date(new Date().getTime() + 5 * 60000);
 
-const logSeparator = ";";
-
 interface otpProvider {
   byOtp: (e: string) => Promise<OtpWithId | null>;
 }
@@ -87,7 +85,7 @@ export class PhoneOtp {
       ipAddress: string;
     }
   ): AuthenticateResult {
-    const op = `.authenticate${logSeparator}`;
+    const op = `authenticate`;
     const logger = this.logger.with(`${op}`);
 
     const otp = await this.otpProvider.byOtp(credentials.code);
@@ -147,7 +145,7 @@ export class PhoneOtp {
 
   // send otp to phone
   async verify(credentials: { phone: string }): Promise<boolean> {
-    const op = `.verify${logSeparator}`;
+    const op = `verify`;
     const logger = this.logger.with(`${op}`);
 
     const user = await this.userProvider.byPhone(credentials.phone);

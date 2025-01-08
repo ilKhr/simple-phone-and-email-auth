@@ -1,5 +1,3 @@
-const logSeparator = ";";
-
 interface Logger {
   info: (msg: string) => void;
   error: (msg: string) => void;
@@ -27,10 +25,10 @@ export class PhoneService {
   }
 
   public async send(message: Message): Promise<boolean> {
-    const op = `.send${logSeparator}`;
+    const op = `send`;
     const logger = this.logger.with(`${op}`);
 
-    logger.info(`mess: ${message}`);
+    logger.info(`mess: ${JSON.stringify(message)}`);
 
     const isComplete = await this.phoneSender.send(message);
 

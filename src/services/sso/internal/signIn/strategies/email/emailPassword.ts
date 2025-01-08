@@ -6,8 +6,6 @@ import {
   SessionSaver,
 } from "src/services/sso/internal/types";
 
-const logSeparator = ";";
-
 interface PasswordComparer {
   compare: (p: string, h: string) => Promise<boolean>;
 }
@@ -53,7 +51,7 @@ export class EmailPassword implements EmailPasswordSignInStrategy {
     };
   }): AuthenticateResult {
     const { credentials, device } = params;
-    const op = `.authenticate${logSeparator}`;
+    const op = `authenticate`;
     const logger = this.logger.with(`${op}`);
 
     const { email, password } = credentials;
@@ -106,7 +104,7 @@ export class EmailPassword implements EmailPasswordSignInStrategy {
   // check user exists
   async verify(params: { credentials: { email: string } }): Promise<boolean> {
     const { credentials } = params;
-    const op = `.verify${logSeparator}`;
+    const op = `verify`;
     const logger = this.logger.with(`${op}`);
 
     const user = await this.userProvider.byEmail(credentials.email);
