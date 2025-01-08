@@ -1,5 +1,6 @@
 import { phone as phoneWorker } from "phone";
 import { PhoneMessage } from "src/services/messageProvider/messageProvider";
+import { CustomError } from "src/utils/error";
 
 interface Sender {
   send: (mess: PhoneMessage) => Promise<boolean>;
@@ -15,7 +16,7 @@ const getProvider = (providers: Providers, phone: string) => {
   const { isValid, countryIso2 } = phoneWorker(phone);
 
   if (!isValid) {
-    throw new Error("Invalid phone");
+    throw new CustomError("Invalid phone");
   }
 
   const provider =
@@ -24,7 +25,7 @@ const getProvider = (providers: Providers, phone: string) => {
       : false;
 
   if (!provider) {
-    throw new Error("Provider not exists for targer county number");
+    throw new CustomError("Provider not exists for targer county number");
   }
 
   return provider;

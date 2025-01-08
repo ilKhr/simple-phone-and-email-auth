@@ -1,4 +1,5 @@
 import { createClient, RedisClientType } from "redis";
+import { CustomError } from "src/utils/error";
 
 const ErrorMessages = {
   Redis: "Redis connection is not initialized",
@@ -57,7 +58,7 @@ export class RedisConnection {
 
   public getClient(): RedisClientType {
     if (!this.client) {
-      throw new Error(ErrorMessages.RedisConnectNotInit);
+      throw new CustomError(ErrorMessages.RedisConnectNotInit);
     }
     return this.client;
   }

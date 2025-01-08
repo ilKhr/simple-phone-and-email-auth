@@ -5,6 +5,7 @@ import {
   JwtCreator,
   SessionSaver,
 } from "src/services/sso/internal/types";
+import { CustomError } from "src/utils/error";
 
 interface PasswordComparer {
   compare: (p: string, h: string) => Promise<boolean>;
@@ -61,7 +62,7 @@ export class EmailPassword implements EmailPasswordSignInStrategy {
     if (!user) {
       logger.error(`err: ${ErrorMessages.UserNotExists}`);
 
-      throw new Error(ErrorMessages.UserNotExists);
+      throw new CustomError(ErrorMessages.UserNotExists);
     }
 
     const ph = user.getPasswordHash();
@@ -69,7 +70,7 @@ export class EmailPassword implements EmailPasswordSignInStrategy {
     if (!ph) {
       logger.error(`err: ${ErrorMessages.PasswordHashNotExists}`);
 
-      throw new Error(ErrorMessages.PasswordHashNotExists);
+      throw new CustomError(ErrorMessages.PasswordHashNotExists);
     }
 
     const result = await this.passwordComparer.compare(password, ph);
@@ -77,7 +78,7 @@ export class EmailPassword implements EmailPasswordSignInStrategy {
     if (!result) {
       logger.error(`err: ${ErrorMessages.IncorrectLoginOrPassword}`);
 
-      throw new Error(ErrorMessages.IncorrectLoginOrPassword);
+      throw new CustomError(ErrorMessages.IncorrectLoginOrPassword);
     }
 
     const uId = user.getId();
@@ -85,7 +86,7 @@ export class EmailPassword implements EmailPasswordSignInStrategy {
     if (!uId) {
       logger.error(`err: ${ErrorMessages.UserIdNotExists}`);
 
-      throw new Error(ErrorMessages.UserIdNotExists);
+      throw new CustomError(ErrorMessages.UserIdNotExists);
     }
 
     const jwt = this.jwtCreator.create({
@@ -112,7 +113,7 @@ export class EmailPassword implements EmailPasswordSignInStrategy {
     if (!user) {
       logger.error(`err: ${ErrorMessages.UserNotExists}`);
 
-      throw new Error(ErrorMessages.UserNotExists);
+      throw new CustomError(ErrorMessages.UserNotExists);
     }
 
     return true;

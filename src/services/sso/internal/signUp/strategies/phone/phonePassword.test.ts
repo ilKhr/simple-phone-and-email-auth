@@ -124,7 +124,8 @@ describe("PhonePasswordSignUpStrategies", () => {
       hasher,
       userSaver,
       sessionSaver,
-      jwtCreator
+      jwtCreator,
+      "test@test.test"
     );
   });
 

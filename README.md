@@ -11,8 +11,8 @@ Simple sso service with TS Classes and SOLID
 - [ ] phone при регистрации
       SSO
 - JWT
-- [ ] Определить данные для JWT
-- [ ] Изменить сессии для поддержки JWT
+- [x] Определить данные для JWT
+- [x] Изменить сессии для поддержки JWT
 - Logout
 - [ ] Написать Logout эндпоинт для отзыва
 

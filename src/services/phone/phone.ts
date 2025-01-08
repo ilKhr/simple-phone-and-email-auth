@@ -1,3 +1,5 @@
+import { CustomError } from "src/utils/error";
+
 interface Logger {
   info: (msg: string) => void;
   error: (msg: string) => void;
@@ -37,7 +39,7 @@ export class PhoneService {
 
       logger.error(msg);
 
-      throw new Error(ErrorMessages.SmsWasNotSended);
+      throw new CustomError(ErrorMessages.SmsWasNotSended);
     }
 
     return true;

@@ -9,6 +9,7 @@ import {
   JwtCreator,
   SessionSaver,
 } from "src/services/sso/internal/types";
+import { CustomError } from "src/utils/error";
 
 // TODO: add normal time functions
 const getExpiresAt = () => new Date(new Date().getTime() + 5 * 60000);
@@ -93,7 +94,7 @@ export class PhoneOtp {
     if (!otp) {
       logger.error(`err: ${ErrorMessages.OtpNotExists}`);
 
-      throw new Error(ErrorMessages.OtpNotExists);
+      throw new CustomError(ErrorMessages.OtpNotExists);
     }
 
     const uId = otp.getUserId();
@@ -101,7 +102,7 @@ export class PhoneOtp {
     if (!uId) {
       logger.error(`err: ${ErrorMessages.UserNotExists}`);
 
-      throw new Error(ErrorMessages.UserNotExists);
+      throw new CustomError(ErrorMessages.UserNotExists);
     }
 
     const user = await this.userProvider.byId(uId);
@@ -109,7 +110,7 @@ export class PhoneOtp {
     if (!user) {
       logger.error(`err: ${ErrorMessages.UserNotExists}`);
 
-      throw new Error(ErrorMessages.UserNotExists);
+      throw new CustomError(ErrorMessages.UserNotExists);
     }
 
     const result = credentials.phone === user.getPhone();
@@ -117,7 +118,7 @@ export class PhoneOtp {
     if (!result) {
       logger.error(`err: ${ErrorMessages.IncorrectLoginOrOtp}`);
 
-      throw new Error(ErrorMessages.IncorrectLoginOrOtp);
+      throw new CustomError(ErrorMessages.IncorrectLoginOrOtp);
     }
 
     const otpId = otp.getId();
@@ -125,7 +126,7 @@ export class PhoneOtp {
     if (!otpId) {
       logger.error(`err: ${ErrorMessages.IdNotExists}`);
 
-      throw new Error(ErrorMessages.IdNotExists);
+      throw new CustomError(ErrorMessages.IdNotExists);
     }
 
     await this.otpRemover.byId(otpId);
@@ -155,7 +156,7 @@ export class PhoneOtp {
 
       logger.error(msg);
 
-      throw new Error(ErrorMessages.UserNotExists);
+      throw new CustomError(ErrorMessages.UserNotExists);
     }
 
     const code = await this.codeGenerator.generate();
@@ -167,7 +168,7 @@ export class PhoneOtp {
     if (!uPhone) {
       logger.error(`err: ${ErrorMessages.UserPhoneNotExists}`);
 
-      throw new Error(ErrorMessages.UserPhoneNotExists);
+      throw new CustomError(ErrorMessages.UserPhoneNotExists);
     }
 
     const isSent = await this.sender.send(uPhone, message);
@@ -175,7 +176,7 @@ export class PhoneOtp {
     if (!isSent) {
       logger.error(`err: ${ErrorMessages.MessageWasNotSend}`);
 
-      throw new Error(ErrorMessages.MessageWasNotSend);
+      throw new CustomError(ErrorMessages.MessageWasNotSend);
     }
 
     const uId = user.getId();
@@ -183,7 +184,7 @@ export class PhoneOtp {
     if (!uId) {
       logger.error(`err: ${ErrorMessages.UserIdNotExists}`);
 
-      throw new Error(ErrorMessages.UserIdNotExists);
+      throw new CustomError(ErrorMessages.UserIdNotExists);
     }
 
     const otp = OtpCreate({

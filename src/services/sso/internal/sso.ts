@@ -1,4 +1,5 @@
 import { AuthenticateResult } from "src/services/sso/internal/types";
+import { CustomError } from "src/utils/error";
 
 export type EmailMessage = {
   from: string;
@@ -135,7 +136,7 @@ export class SsoService {
 
       logger.error(msg);
 
-      throw new Error(ErrorMessages.UnsuporterAuthMethod);
+      throw new CustomError(ErrorMessages.UnsuporterAuthMethod);
     }
 
     return strategy.authenticate(params);
@@ -155,7 +156,7 @@ export class SsoService {
 
       logger.error(msg);
 
-      throw new Error(ErrorMessages.UnsuporterAuthMethod);
+      throw new CustomError(ErrorMessages.UnsuporterAuthMethod);
     }
 
     return strategy.verify(params);
@@ -175,7 +176,7 @@ export class SsoService {
 
       logger.error(msg);
 
-      throw new Error(ErrorMessages.UnsuporterAuthMethod);
+      throw new CustomError(ErrorMessages.UnsuporterAuthMethod);
     }
 
     //@ts-ignore
@@ -196,7 +197,7 @@ export class SsoService {
 
       logger.error(msg);
 
-      throw new Error(ErrorMessages.UnsuporterAuthMethod);
+      throw new CustomError(ErrorMessages.UnsuporterAuthMethod);
     }
 
     //@ts-ignore

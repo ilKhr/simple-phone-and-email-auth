@@ -15,6 +15,7 @@ import {
   AuthenticateResult,
 } from "src/services/sso/internal/types";
 import { EmailPasswordSignUpStrategy } from "src/services/sso/internal/sso";
+import { CustomError } from "src/utils/error";
 
 export interface Sender {
   send: (message: EmailMessage) => Promise<boolean>;
@@ -90,7 +91,7 @@ export class EmailPasswordSignUpStrategies
     if (!otp) {
       logger.error(`err: ${ErrorMessages.OtpNotExists}`);
 
-      throw new Error(ErrorMessages.OtpNotExists);
+      throw new CustomError(ErrorMessages.OtpNotExists);
     }
 
     const equalResult = credentials.email === otp.getDestination();
@@ -98,7 +99,7 @@ export class EmailPasswordSignUpStrategies
     if (!equalResult) {
       logger.error(`err: ${ErrorMessages.IncorrectLoginOrOtp}`);
 
-      throw new Error(ErrorMessages.IncorrectLoginOrOtp);
+      throw new CustomError(ErrorMessages.IncorrectLoginOrOtp);
     }
 
     const isExpiresResult = otp.checkIsExpires();
@@ -110,7 +111,7 @@ export class EmailPasswordSignUpStrategies
 
       logger.error(`err: ${ErrorMessages.OtpIsExpired}`);
 
-      throw new Error(ErrorMessages.OtpIsExpired);
+      throw new CustomError(ErrorMessages.OtpIsExpired);
     }
 
     const existedUser = await this.userProvider.byEmail(credentials.email);
@@ -120,7 +121,7 @@ export class EmailPasswordSignUpStrategies
 
       logger.error(`err: ${ErrorMessages.ThisEmailAlreadyUsed}`);
 
-      throw new Error(ErrorMessages.ThisEmailAlreadyUsed);
+      throw new CustomError(ErrorMessages.ThisEmailAlreadyUsed);
     }
 
     const localUser = UserCreate({
@@ -165,7 +166,7 @@ export class EmailPasswordSignUpStrategies
     if (user) {
       logger.error(`err: ${ErrorMessages.ThisEmailAlreadyUsed}`);
 
-      throw new Error(ErrorMessages.ThisEmailAlreadyUsed);
+      throw new CustomError(ErrorMessages.ThisEmailAlreadyUsed);
     }
 
     const existedOtp = await this.otpProvider.byDestination(credentials.email);
@@ -173,7 +174,7 @@ export class EmailPasswordSignUpStrategies
     if (existedOtp && !existedOtp.checkIsExpires()) {
       logger.error(`err: ${ErrorMessages.OtpAlreadyUsedTryLater}`);
 
-      throw new Error(ErrorMessages.OtpAlreadyUsedTryLater);
+      throw new CustomError(ErrorMessages.OtpAlreadyUsedTryLater);
     }
 
     const code = await this.otpGenerator.generate();
@@ -189,7 +190,7 @@ export class EmailPasswordSignUpStrategies
     if (!isSent) {
       logger.error(`err: ${ErrorMessages.MessageWasNotSend}`);
 
-      throw new Error(ErrorMessages.MessageWasNotSend);
+      throw new CustomError(ErrorMessages.MessageWasNotSend);
     }
 
     const otp = OtpCreate({

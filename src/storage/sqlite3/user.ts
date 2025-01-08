@@ -6,6 +6,7 @@ import {
   UserWithId,
 } from "src/services/sso/internal/entities/user";
 import { checkHasId } from "src/storage/utils/checkHasId";
+import { CustomError } from "src/utils/error";
 
 const ErrorMessages = {
   LastIdNotExists: "Last id not exists",
@@ -91,7 +92,7 @@ const save = async (gp: GeneralParams, user: User): Promise<UserWithId> => {
 
     if (!result.lastID) {
       scopedLogger.error(`err: ${ErrorMessages.LastIdNotExists}`);
-      throw new Error(ErrorMessages.LastIdNotExists);
+      throw new CustomError(ErrorMessages.LastIdNotExists);
     }
 
     user.setId(result.lastID);
@@ -141,7 +142,7 @@ const deleteUserById = async (
 
   if (!result.changes && result.changes != 0) {
     scopedLogger.error(`err: ${ErrorMessages.ChangesNotExists}`);
-    throw new Error(ErrorMessages.ChangesNotExists);
+    throw new CustomError(ErrorMessages.ChangesNotExists);
   }
 
   return result.changes > 0;
@@ -158,7 +159,7 @@ const mapToUser = (row: UserRow): UserWithId => {
   });
 
   if (!checkHasId(user)) {
-    throw new Error(ErrorMessages.EntityIdNotExists);
+    throw new CustomError(ErrorMessages.EntityIdNotExists);
   }
 
   return user;

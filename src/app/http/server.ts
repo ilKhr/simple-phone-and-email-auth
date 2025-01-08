@@ -6,6 +6,7 @@ import Fastify, {
   RouteHandlerMethod,
   FastifyBaseLogger,
   FastifyInstance,
+  onSendHookHandler,
 } from "fastify";
 
 import fastifyCookie from "@fastify/cookie";
@@ -15,6 +16,10 @@ import { FastifySchema } from "fastify/types/schema";
 import { FromSchema, JSONSchema } from "json-schema-to-ts";
 import { SsoService } from "src/services/sso/internal/sso";
 import { HttpRouter } from "src/app/http/routes/router";
+import { processError } from "src/app/http/middleware/error";
+import { LifecycleHook } from "fastify/types/hooks";
+
+export type Server = FastifyInstance;
 
 export type ServerSchema = Omit<FastifySchema, "response"> & {
   response: {
@@ -24,6 +29,8 @@ export type ServerSchema = Omit<FastifySchema, "response"> & {
 };
 
 type Reply<S> = S extends { 200: infer R } ? R : never;
+
+export type OnSend = onSendHookHandler;
 
 export type Handler<S extends ServerSchema> = RouteHandlerMethod<
   RawServerBase,
@@ -52,10 +59,7 @@ interface GeneralParams {
   ssoService: SsoService;
 }
 
-const registerPlugin = async (
-  server: ReturnType<typeof Fastify>,
-  config: Config
-) => {
+const registerPlugin = async (server: Server, config: Config) => {
   await server.register(fastifyCookie, {
     secret: config.cookieSecret,
   });
@@ -77,10 +81,19 @@ const registerPlugin = async (
   });
 };
 
-const registerRouter = (
-  server: ReturnType<typeof Fastify>,
-  ssoService: SsoService
-) => {
+const registerHooks = (server: Server) => {
+  const hooks: { onSend: OnSend[] } = {
+    onSend: [processError],
+  } as const;
+
+  Object.entries(hooks).forEach(([hookName, hookFunctions]) => {
+    hookFunctions.forEach((f) => {
+      server.addHook(hookName as LifecycleHook, f);
+    });
+  });
+};
+
+const registerRouter = (server: Server, ssoService: SsoService) => {
   const router = HttpRouter(ssoService);
   Object.entries(router).forEach(([endpoint, methods]) => {
     Object.entries(methods).forEach(([method, handler]) => {
@@ -115,6 +128,7 @@ export const Server = async (gp: GeneralParams) => {
 
   await registerPlugin(server, gp.config);
   registerRouter(server, gp.ssoService);
+  registerHooks(server);
 
   return {
     run: (port: number, cb: (err: Error | null, address: string) => void) =>

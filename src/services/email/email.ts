@@ -1,3 +1,5 @@
+import { CustomError } from "src/utils/error";
+
 interface Logger {
   info: (msg: string) => void;
   error: (msg: string) => void;
@@ -36,7 +38,7 @@ const send = async (gp: GeneralParams, message: Message): Promise<boolean> => {
   if (!isComplete) {
     const msg = `err: ${ErrorMessages.EmailWasNotSended}`;
     scopedLogger.error(msg);
-    throw new Error(ErrorMessages.EmailWasNotSended);
+    throw new CustomError(ErrorMessages.EmailWasNotSended);
   }
 
   return true;

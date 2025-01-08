@@ -5,6 +5,7 @@ import {
   SessionWithId,
 } from "src/services/session/internal/entities/session";
 import { checkHasId } from "src/storage/utils/checkHasId";
+import { CustomError } from "src/utils/error";
 
 const ErrorMessages = {
   EntityIdNotExists: "Entity id not exists",
@@ -113,7 +114,7 @@ const mapToSession = (row: SessionRow): SessionWithId => {
   });
 
   if (!checkHasId(session)) {
-    throw new Error(ErrorMessages.EntityIdNotExists);
+    throw new CustomError(ErrorMessages.EntityIdNotExists);
   }
 
   return session;

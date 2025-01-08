@@ -9,6 +9,7 @@ import {
   JwtCreator,
   SessionSaver,
 } from "src/services/sso/internal/types";
+import { CustomError } from "src/utils/error";
 
 // TODO: add normal time functions
 const getExpiresAt = () => new Date(new Date().getTime() + 5 * 60000);
@@ -95,7 +96,7 @@ export class EmailOtp {
 
       logger.error(msg);
 
-      throw new Error(ErrorMessages.OtpNotExists);
+      throw new CustomError(ErrorMessages.OtpNotExists);
     }
 
     const uId = otp.getUserId();
@@ -103,7 +104,7 @@ export class EmailOtp {
     if (!uId) {
       logger.error(`err: ${ErrorMessages.UserNotExists}`);
 
-      throw new Error(ErrorMessages.UserNotExists);
+      throw new CustomError(ErrorMessages.UserNotExists);
     }
 
     const user = await this.userProvider.byId(uId);
@@ -113,7 +114,7 @@ export class EmailOtp {
 
       logger.error(msg);
 
-      throw new Error(ErrorMessages.UserNotExists);
+      throw new CustomError(ErrorMessages.UserNotExists);
     }
 
     const result = credentials.email === user.getEmail();
@@ -123,7 +124,7 @@ export class EmailOtp {
 
       logger.error(msg);
 
-      throw new Error(ErrorMessages.IncorrectLoginOrOtp);
+      throw new CustomError(ErrorMessages.IncorrectLoginOrOtp);
     }
 
     await this.otpRemover.byId(otp.getId());
@@ -153,7 +154,7 @@ export class EmailOtp {
 
       logger.error(msg);
 
-      throw new Error(ErrorMessages.UserNotExists);
+      throw new CustomError(ErrorMessages.UserNotExists);
     }
 
     const code = await this.codeGenerator.generate();
@@ -165,7 +166,7 @@ export class EmailOtp {
     if (!uEmail) {
       logger.error(`err: ${ErrorMessages.UserEmailNotExists}`);
 
-      throw new Error(ErrorMessages.UserEmailNotExists);
+      throw new CustomError(ErrorMessages.UserEmailNotExists);
     }
 
     const isSent = await this.sender.send(uEmail, message);
@@ -173,7 +174,7 @@ export class EmailOtp {
     if (!isSent) {
       logger.error(`err: ${ErrorMessages.MessageWasNotSend}`);
 
-      throw new Error(ErrorMessages.MessageWasNotSend);
+      throw new CustomError(ErrorMessages.MessageWasNotSend);
     }
 
     const otp = OtpCreate({

@@ -1,4 +1,5 @@
 import { Message } from "src/services/phone/phone";
+import { CustomError } from "src/utils/error";
 
 interface Logger {
   info: (msg: string) => void;
@@ -17,7 +18,7 @@ export const LocalSms = (gp: GeneralParams) => {
   if (!gp.isActive) {
     gp.logger.info("Inactive service");
 
-    throw new Error("Inactive service");
+    throw new CustomError("Inactive service");
   }
 
   const scopedLogger = gp.logger.with(op);

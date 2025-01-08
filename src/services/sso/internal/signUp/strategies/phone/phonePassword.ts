@@ -15,6 +15,7 @@ import {
   UserProvider,
   UserSaver,
 } from "src/services/sso/internal/types";
+import { CustomError } from "src/utils/error";
 
 // TODO: add normal time functions
 const getExpiresAt = () => new Date(new Date().getTime() + 5 * 60000);
@@ -89,7 +90,7 @@ export class PhonePasswordSignUpStrategies
     if (!otp) {
       logger.error(`err: ${ErrorMessages.OtpNotExists}`);
 
-      throw new Error(ErrorMessages.OtpNotExists);
+      throw new CustomError(ErrorMessages.OtpNotExists);
     }
 
     const equalResult = credentials.phone === otp.getDestination();
@@ -97,7 +98,7 @@ export class PhonePasswordSignUpStrategies
     if (!equalResult) {
       logger.error(`err: ${ErrorMessages.IncorrectLoginOrOtp}`);
 
-      throw new Error(ErrorMessages.IncorrectLoginOrOtp);
+      throw new CustomError(ErrorMessages.IncorrectLoginOrOtp);
     }
 
     const isExpiresResult = otp.checkIsExpires();
@@ -107,7 +108,7 @@ export class PhonePasswordSignUpStrategies
     if (!otpId) {
       logger.error(`err: ${ErrorMessages.IdNotExists}`);
 
-      throw new Error(ErrorMessages.IdNotExists);
+      throw new CustomError(ErrorMessages.IdNotExists);
     }
 
     if (isExpiresResult) {
@@ -115,7 +116,7 @@ export class PhonePasswordSignUpStrategies
 
       logger.error(`err: ${ErrorMessages.OtpIsExpired}`);
 
-      throw new Error(ErrorMessages.OtpIsExpired);
+      throw new CustomError(ErrorMessages.OtpIsExpired);
     }
 
     const existedUser = await this.userProvider.byPhone(credentials.phone);
@@ -125,7 +126,7 @@ export class PhonePasswordSignUpStrategies
 
       logger.error(`err: ${ErrorMessages.ThisPhoneAlreadyUsed}`);
 
-      throw new Error(ErrorMessages.ThisPhoneAlreadyUsed);
+      throw new CustomError(ErrorMessages.ThisPhoneAlreadyUsed);
     }
 
     const localUser = UserCreate({
@@ -170,7 +171,7 @@ export class PhonePasswordSignUpStrategies
     if (user) {
       logger.error(`err: ${ErrorMessages.ThisPhoneAlreadyUsed}`);
 
-      throw new Error(ErrorMessages.ThisPhoneAlreadyUsed);
+      throw new CustomError(ErrorMessages.ThisPhoneAlreadyUsed);
     }
 
     const existedOtp = await this.otpProvider.byDestination(credentials.phone);
@@ -178,7 +179,7 @@ export class PhonePasswordSignUpStrategies
     if (existedOtp && !existedOtp.checkIsExpires()) {
       logger.error(`err: ${ErrorMessages.OtpAlreadyUsedTryLater}`);
 
-      throw new Error(ErrorMessages.OtpAlreadyUsedTryLater);
+      throw new CustomError(ErrorMessages.OtpAlreadyUsedTryLater);
     }
 
     const code = await this.otpGenerator.generate();
@@ -194,7 +195,7 @@ export class PhonePasswordSignUpStrategies
     if (!isSent) {
       logger.error(`err: ${ErrorMessages.MessageWasNotSend}`);
 
-      throw new Error(ErrorMessages.MessageWasNotSend);
+      throw new CustomError(ErrorMessages.MessageWasNotSend);
     }
 
     const otp = OtpCreate({

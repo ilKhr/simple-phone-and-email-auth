@@ -124,7 +124,8 @@ describe("EmailPasswordSignUpStrategies", () => {
       hasher,
       userSaver,
       sessionSaver,
-      jwtCreator
+      jwtCreator,
+      "test@test.test"
     );
   });
 

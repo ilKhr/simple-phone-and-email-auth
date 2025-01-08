@@ -1,3 +1,5 @@
+import { CustomError } from "src/utils/error";
+
 type GeneralEmailParams = {
   from: string;
   to: string;
@@ -67,7 +69,7 @@ const getTemplate = <T extends MessageTypes, P extends Platforms>(
   const template = gp.templateProvider.byPlatformAndType(platform, type);
 
   if (!template) {
-    throw new Error("Template not exist");
+    throw new CustomError("Template not exist");
   }
 
   return template;

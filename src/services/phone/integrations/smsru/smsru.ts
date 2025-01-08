@@ -1,5 +1,6 @@
 import { errors } from "src/services/phone/integrations/smsru/errors";
 import { Message } from "src/services/phone/phone";
+import { CustomError } from "src/utils/error";
 
 interface Logger {
   error: (msg: string) => void;
@@ -68,7 +69,7 @@ const createTransporter = (gp: GeneralParams) => {
                 `${ErrorMessages.SmsNotSended}: ${errorMessage}`
               );
 
-              throw new Error(ErrorMessages.SmsNotSended);
+              throw new CustomError(ErrorMessages.SmsNotSended);
             }
           });
         } else {
@@ -78,13 +79,13 @@ const createTransporter = (gp: GeneralParams) => {
 
           scopedLogger.error(`${ErrorMessages.SmsNotSended}: ${errorMessage}`);
 
-          throw new Error(ErrorMessages.SmsNotSended);
+          throw new CustomError(ErrorMessages.SmsNotSended);
         }
       } catch (error) {
         const errorMessage = `${ErrorMessages.SmsNotSended}: ${error}`;
 
         scopedLogger.error(errorMessage);
-        throw new Error(ErrorMessages.SmsNotSended);
+        throw new CustomError(ErrorMessages.SmsNotSended);
       }
     },
   };

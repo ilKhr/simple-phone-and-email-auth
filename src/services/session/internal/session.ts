@@ -4,6 +4,7 @@ import {
   SessionParamsJwt,
   SessionWithId,
 } from "src/services/session/internal/entities/session";
+import { CustomError } from "src/utils/error";
 
 export interface SessionSaver {
   save: (session: Session) => Promise<SessionWithId>;
@@ -44,12 +45,12 @@ const create = async (
 
   if (!userId) {
     scopedLogger.error(`err: ${ErrorMessages.UserIdNotProvided}`);
-    throw new Error(ErrorMessages.UserIdNotProvided);
+    throw new CustomError(ErrorMessages.UserIdNotProvided);
   }
 
   if (!device.ipAddress) {
     scopedLogger.error(`err: ${ErrorMessages.IpAddressNotProvided}`);
-    throw new Error(ErrorMessages.IpAddressNotProvided);
+    throw new CustomError(ErrorMessages.IpAddressNotProvided);
   }
 
   const session = await gp.sessionSaver.save(
@@ -71,14 +72,14 @@ const remove = async (gp: GeneralParams, id: string): Promise<boolean> => {
 
   if (!id) {
     scopedLogger.error(`err: ${ErrorMessages.SessionIdNotProvided}`);
-    throw new Error(ErrorMessages.SessionIdNotProvided);
+    throw new CustomError(ErrorMessages.SessionIdNotProvided);
   }
 
   const isRemoved = await gp.sessionRemover.byId(id);
 
   if (!isRemoved) {
     scopedLogger.error(`err: ${ErrorMessages.SessionNotRemoved}`);
-    throw new Error(ErrorMessages.SessionNotRemoved);
+    throw new CustomError(ErrorMessages.SessionNotRemoved);
   }
 
   return isRemoved;

@@ -1,5 +1,6 @@
 import sqlite3 from "sqlite3";
 import { open, Database } from "sqlite";
+import { CustomError } from "src/utils/error";
 
 const ErrorMessages = {
   DBConnectNotInit: "Database connection is not initialized",
@@ -31,7 +32,7 @@ export class SQLiteConnection {
 
   public async getDb(): Promise<Database<sqlite3.Database, sqlite3.Statement>> {
     if (!this.db) {
-      throw new Error(ErrorMessages.DBConnectNotInit);
+      throw new CustomError(ErrorMessages.DBConnectNotInit);
     }
     return this.db;
   }
